@@ -1,0 +1,4 @@
+__pycache__
+.vscode
+metadata/*
+mod.h5
