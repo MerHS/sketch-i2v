@@ -1,3 +1,7 @@
+"""
+XDoG: https://github.com/heitorrapela/xdog
+sketchKeras: https://github.com/lllyasviel/sketchKeras
+"""
 import cv2
 import numpy as np
 from keras.models import load_model
