@@ -50,8 +50,8 @@ def move_lineart(file_id, aspect, dest_path):
         return
     
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    square_img = crop.make_256px_square(img)
-    
+    square_img, _, _ = crop.make_256px_square(img)
+
     cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
 
 
@@ -86,8 +86,6 @@ if __name__ == '__main__':
     lineart_dir.mkdir(exist_ok=True)
 
     for json_file_name in os.listdir('./metadata'):
-        if count > 0: 
-            break
 
         if not json_file_name.endswith('.json'):
             continue
@@ -98,11 +96,8 @@ if __name__ == '__main__':
         tagline_list = []
         lineart_tagline_list = []
         with open('metadata/' + json_file_name, 'r', encoding='utf8') as f:
+            print(f'reading metadata/{json_file_name}')
             for line in f:
-                if count > 100: 
-                    break
-                count += 1
-
                 try: 
                     metadata = json.loads(line)
                     tags = metadata['tags']
@@ -137,16 +132,20 @@ if __name__ == '__main__':
 
                     # lineart는 따로 처리 (monochrome or greyscale)
                     if TAG_MONOCHROME in tag_id_list or TAG_GREYSCALE in tag_id_list:
-                        print(file_id, aspect, lineart_dir)
                         move_lineart(file_id, aspect, lineart_dir)
                         lineart_tagline_list.append(tagline)
                     else:
                         move_color_image(file_id, aspect, output_dir)
                         tagline_list.append(tagline)
 
+                    count += 1
+                    if count % 1000 == 0:
+                        print(f'parse count: {count}')
+
                 except KeyError as e:
                     print(e)
-        
+
+                
         with (output_dir / 'tags.txt').open('w') as tag_file:
             tag_file.writelines(tagline_list)
 
