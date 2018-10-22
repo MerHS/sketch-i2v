@@ -13,28 +13,21 @@ def crop_square_image(img, aspect): # aspect = width / height
         img = img[:, cut:-cut]
     return img
 
-def get_cropped_image(image_path, aspect):
-    if not image_path.exists():
-        return None
-    img = cv2.imread(str(image_path))
-    return crop_square_image(img, aspect)
-
 def is_white(vect):
     return np.all(vect > 250)
 
 def make_256px_square(img, crop=False, extend=None):
     """
     extend borders with white pixel or crop image to make it square
-    
+
     crop: boolean -- crop longer part and make square (default: False)
     extend: None | (boolean, boolean) -- extend (left or top, right or bottom) part to white
     
     return: (image, is_cropped: boolean, is_extended: None | (boolean, boolean))
     """
-    is_bgr = img.shape[2] == 3
+    is_bgr = len(img.shape) >= 3 and img.shape[2] == 3
     height, width = img.shape[:2]
-    cropped = False
-
+    
     if crop:
         if height > width: # crop top & bottom
             margin_bottom = (height - width) // 2
@@ -48,59 +41,59 @@ def make_256px_square(img, crop=False, extend=None):
         resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
         return (resized_img, True, None) 
 
-    # set extend
-    if height > width: # extend horizontally
-        lw, rw = is_white(img[:, 0]), is_white(img[:, -1])
-        if lw and rw:
-            pass
-        elif lw:
-            pass
-        elif rw:
-            pass
-        else:
-            cropped = True
-
-    elif height < width: # extend vertically
-        tw, bw = is_white(img[0]), is_white(img[-1])
-
-    diff = math.abs(height - width)
+    elif extend is None:
+        if height > width: # extend horizontally
+            lw, rw = is_white(img[:, 0]), is_white(img[:, -1])
+            extend = (lw, rw)
+        elif height < width: # extend vertically
+            th, bh = is_white(img[0]), is_white(img[-1])
+            extend = (th, bh)
+    
+    diff = abs(height - width)
     lx, ly = diff // 2, diff - (diff // 2)
+    cropped = False
 
     if height > width: # extend (left, right)    
         if is_bgr:
-            zx, zy = np.zeros((height, lx, 3)), np.zeros((height, ly, 3))
+            zx, zy = np.full((height, lx, 3), 255, dtype=np.uint8), np.full((height, ly, 3), 255, dtype=np.uint8)
         else:
-            zx, zy = np.zeros((height, lx)), np.zeros((height, ly))
+            zx, zy = np.full((height, lx), 255, dtype=np.uint8), np.full((height, ly), 255, dtype=np.uint8)
 
         if extend == (True, True):
-            img = cv2.append(zx, img, axis=1)
-            img = cv2.append(img, zy, axis=1)
+            img = np.append(zx, img, axis=1)
+            img = np.append(img, zy, axis=1)
         elif extend == (False, True):
-            img = cv2.append(img, zx, axis=1)
-            img = cv2.append(img, zy, axis=1)
+            img = np.append(img, zx, axis=1)
+            img = np.append(img, zy, axis=1)
         elif extend == (True, False):
-            img = cv2.append(zx, img, axis=1)
-            img = cv2.append(zy, img, axis=1)
+            img = np.append(zx, img, axis=1)
+            img = np.append(zy, img, axis=1)
+        else: # crop top / bottom
+            img = img[lx:-ly]
+            cropped = True
 
     elif width > height: # extend (top, bottom)
         if is_bgr:
-            zx, zy = np.zeros((lx, width, 3)), np.zeros((ly, width, 3))
+            zx, zy = np.full((lx, width, 3), 255, dtype=np.uint8), np.full((ly, width, 3), 255, dtype=np.uint8)
         else:
-            zx, zy = np.zeros((lx, width)), np.zeros((ly, width))
+            zx, zy = np.full((lx, width), 255, dtype=np.uint8), np.full((ly, width), 255, dtype=np.uint8)
 
         if extend == (True, True):
-            img = cv2.append(zx, img, axis=0)
-            img = cv2.append(img, zy, axis=0)
+            img = np.append(zx, img, axis=0)
+            img = np.append(img, zy, axis=0)
         elif extend == (False, True):
-            img = cv2.append(img, zx, axis=0)
-            img = cv2.append(img, zy, axis=0)
+            img = np.append(img, zx, axis=0)
+            img = np.append(img, zy, axis=0)
         elif extend == (True, False):
-            img = cv2.append(zx, img, axis=0)
-            img = cv2.append(zy, img, axis=0)
+            img = np.append(zx, img, axis=0)
+            img = np.append(zy, img, axis=0)
+        else: # crop
+            img = img[:, lx:-ly]
+            cropped = True
     
     resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
-       
-    return (resized_img, cropped, None)
+    
+    return (resized_img, cropped, extend)
 
     
 

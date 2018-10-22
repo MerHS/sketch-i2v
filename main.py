@@ -10,6 +10,7 @@ import crop
 
 # directory path of 512px or original folder of danbooru2017 dataset
 IMAGE_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\512px' 
+OUTPUT_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\256px'
 
 TAG_MONOCHROME = 1681
 TAG_GREYSCALE = 513837
@@ -17,41 +18,58 @@ TAG_COMIC = 63
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
 image_dir_path = Path(IMAGE_DIRECTORY)
+output_dir_path = Path(OUTPUT_DIRECTORY)
+
 if not image_dir_path.exists():
     raise Exception('Directory of image "'+ IMAGE_DIRECTORY + '" does not exists.')
 
+output_dir_path.mkdir(exist_ok=True)
 
-def get_image_path(id):
-    image_path = image_dir_path / f'{(id%1000):04}' / f'{id}.jpg'
+def get_image_path(file_id):
+    image_path = image_dir_path / f'{(int(file_id) % 1000):04}' / f'{file_id}.jpg'
     return image_path
 
-def get_image(id, aspect):
-    image_path = get_image_path(id)
-    img = crop.get_cropped_image(image_path, aspect)
-    return img
+def is_image_exists(file_id):
+    image_path = get_image_path(file_id)
+    return image_path.exists()
+
+def get_cropped_image(file_id, aspect):
+    image_path = get_image_path(file_id)
+    if not image_path.exists():
+        return None
+    img = cv2.imread(str(image_path))
+    return crop.crop_square_image(img, aspect)
 
 def metadata_to_tagline(metadata):
     id_list = map(lambda tag: tag['id'], metadata['tags'])
-    return metadata['id'] + ' ' + ' '.join(id_list)
+    return metadata['id'] + ' ' + ' '.join(id_list) + '\n'
 
-def move_lineart(id, aspect, metadata):
-    img = get_image(id, aspect)
-    if img is not None:
+def move_lineart(file_id, aspect, dest_path):
+    img = get_cropped_image(file_id, aspect)
+    if img is None:
         return
     
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    square_img = crop.make_256px_square(img)
+    
+    cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
 
 
-def move_color_image(id, aspect, metadata):
-    img = get_image(id, aspect)
-    if img is not None:
+def move_color_image(file_id, aspect, dest_path):
+    img = get_cropped_image(file_id, aspect)
+    if img is None:
         return
 
     sketch = sketchify.get_sketch(img)
+    square_img, cropped, extend = crop.make_256px_square(img)
+    square_sketch, _, _ = crop.make_256px_square(sketch, cropped, extend)
+
+    cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
+    cv2.imwrite(str(dest_path / f'{file_id}_sk.png'), square_sketch)
 
 
-def show_image(id, aspect):
-    img = get_image(id, aspect)
+def show_image(file_id, aspect):
+    img = get_cropped_image(file_id, aspect)
     if img is not None:
         cv2.imshow('original', img)
         cv2.imshow('keras-high-intensity', sketchify.get_keras_high_intensity(img))
@@ -59,25 +77,39 @@ def show_image(id, aspect):
         cv2.imshow('sketch',skt)
         cv2.waitKey(0)
     else:
-        print(f'cannot find {id}.jpg')
+        print(f'cannot find {file_id}.jpg')
 
 
 if __name__ == '__main__':
     count = 0
+    lineart_dir = output_dir_path / 'lineart'
+    lineart_dir.mkdir(exist_ok=True)
+
     for json_file_name in os.listdir('./metadata'):
-        break
         if count > 0: 
             break
-        count += 1
 
         if not json_file_name.endswith('.json'):
             continue
 
+        output_dir = output_dir_path / json_file_name[:-5]
+        output_dir.mkdir(exist_ok=True)
+
+        tagline_list = []
+        lineart_tagline_list = []
         with open('metadata/' + json_file_name, 'r', encoding='utf8') as f:
             for line in f:
+                if count > 100: 
+                    break
+                count += 1
+
                 try: 
                     metadata = json.loads(line)
                     tags = metadata['tags']
+                    file_id = int(metadata['id'])
+
+                    if not is_image_exists(file_id):
+                        continue
 
                     # use image only
                     if metadata['file_ext'] not in AVAILABLE_EXT:
@@ -101,19 +133,22 @@ if __name__ == '__main__':
                     if TAG_COMIC in tag_id_list:
                         continue
 
+                    tagline = metadata_to_tagline(metadata)
+
                     # lineart는 따로 처리 (monochrome or greyscale)
                     if TAG_MONOCHROME in tag_id_list or TAG_GREYSCALE in tag_id_list:
-                        move_lineart(id, aspect, metadata)
+                        print(file_id, aspect, lineart_dir)
+                        move_lineart(file_id, aspect, lineart_dir)
+                        lineart_tagline_list.append(tagline)
                     else:
-                        move_color_image(id, aspect, metadata)
+                        move_color_image(file_id, aspect, output_dir)
+                        tagline_list.append(tagline)
 
                 except KeyError as e:
                     print(e)
+        
+        with (output_dir / 'tags.txt').open('w') as tag_file:
+            tag_file.writelines(tagline_list)
 
-# img = get_image(263167, 551/778)
-# if img is not None:
-#     cv2.imshow('original', img)
-#     cv2.imshow('keras', sketchify.get_keras_high_intensity(img))
-#     skt = sketchify.get_sketch(img)
-#     cv2.imshow('name',skt)
-#     cv2.waitKey(0)
+    with (lineart_dir / 'tags.txt').open('w') as tag_file:
+        tag_file.writelines(lineart_tagline_list)
