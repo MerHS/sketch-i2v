@@ -14,7 +14,10 @@ OUTPUT_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\256px'
 
 TAG_MONOCHROME = 1681
 TAG_GREYSCALE = 513837
-TAG_COMIC = 63
+
+# comic, photo, subtitled, english
+TAG_BLACKLIST = [63, 4751, 12650, 172609]
+
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
 image_dir_path = Path(IMAGE_DIRECTORY)
@@ -116,16 +119,20 @@ if __name__ == '__main__':
 
                     tag_id_list = list(map(lambda t: int(t['id']), tags))
                     height, width = int(metadata['image_height']), int(metadata['image_width'])
+                    
+                    if height == 0 or width == 0:
+                        continue
+                    
                     aspect = width / height
 
                     # drop too long or small image 
                     if height < 512 and width < 512:
                         continue
-                    if not ((2/3) <= aspect <= (3/2)):
+                    if not ((3/4) <= aspect <= (4/3)):
                         continue
 
-                    # drop comic
-                    if TAG_COMIC in tag_id_list:
+                    # drop blacklisted tags
+                    if any(tag_bl in tag_id_list for tag_bl in TAG_BLACKLIST):
                         continue
 
                     tagline = metadata_to_tagline(metadata)
@@ -143,6 +150,8 @@ if __name__ == '__main__':
                         print(f'parse count: {count}')
 
                 except KeyError as e:
+                    print(e)
+                except Exception as e:
                     print(e)
 
                 
