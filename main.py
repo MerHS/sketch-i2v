@@ -40,7 +40,7 @@ def move_lineart(id, aspect, metadata):
         return
     
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
+
 
 def move_color_image(id, aspect, metadata):
     img = get_image(id, aspect)
@@ -117,14 +117,3 @@ if __name__ == '__main__':
 #     skt = sketchify.get_sketch(img)
 #     cv2.imshow('name',skt)
 #     cv2.waitKey(0)
-
-# key_set = {'score', 'last_commented_at', 'image_height', 'is_note_locked', 'is_pending', 
-# 'pixiv_id', 'source', 'down_score', 'pools', 'parent_id', 'md5', 'up_score', 'approver_id', 
-# 'created_at', 'is_rating_locked', 'rating', 'favs', 'has_children', 'last_noted_at', 'updated_at', 
-# 'is_deleted', 'is_status_locked', 'image_width', 'file_size', 'is_flagged', 'is_banned', 'id', 
-# 'file_ext', 'uploader_id', 'tags'}
-
-# ext_set = {'jpeg', 'jpg', 'rar', 'swf', 'bmp', 'zip', 'png', 'webm', 'gif', 'mp4'}
-
-# category = { 0: Tags, 1: Artists, 3: Copyrights, 4: Characters, 5: Meta }
-# total count: 2262211
