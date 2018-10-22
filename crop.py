@@ -53,11 +53,12 @@ def make_256px_square(img, crop=False, extend=None):
     lx, ly = diff // 2, diff - (diff // 2)
     cropped = False
 
-    if height > width: # extend (left, right)    
-        if is_bgr:
-            zx, zy = np.full((height, lx, 3), 255, dtype=np.uint8), np.full((height, ly, 3), 255, dtype=np.uint8)
-        else:
-            zx, zy = np.full((height, lx), 255, dtype=np.uint8), np.full((height, ly), 255, dtype=np.uint8)
+    if height > width: # extend (left, right)
+        if extend is not None and extend is not (False, False):
+            if is_bgr:
+                zx, zy = np.full((height, lx, 3), 255, dtype=np.uint8), np.full((height, ly, 3), 255, dtype=np.uint8)
+            else:
+                zx, zy = np.full((height, lx), 255, dtype=np.uint8), np.full((height, ly), 255, dtype=np.uint8)
 
         if extend == (True, True):
             img = np.append(zx, img, axis=1)
@@ -73,10 +74,11 @@ def make_256px_square(img, crop=False, extend=None):
             cropped = True
 
     elif width > height: # extend (top, bottom)
-        if is_bgr:
-            zx, zy = np.full((lx, width, 3), 255, dtype=np.uint8), np.full((ly, width, 3), 255, dtype=np.uint8)
-        else:
-            zx, zy = np.full((lx, width), 255, dtype=np.uint8), np.full((ly, width), 255, dtype=np.uint8)
+        if extend is not None and extend is not (False, False):
+            if is_bgr:
+                zx, zy = np.full((lx, width, 3), 255, dtype=np.uint8), np.full((ly, width, 3), 255, dtype=np.uint8)
+            else:
+                zx, zy = np.full((lx, width), 255, dtype=np.uint8), np.full((ly, width), 255, dtype=np.uint8)
 
         if extend == (True, True):
             img = np.append(zx, img, axis=0)

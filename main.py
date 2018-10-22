@@ -20,6 +20,8 @@ TAG_BLACKLIST = [63, 4751, 12650, 172609]
 
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
+batch_read_size = 100
+
 image_dir_path = Path(IMAGE_DIRECTORY)
 output_dir_path = Path(OUTPUT_DIRECTORY)
 
@@ -27,6 +29,12 @@ if not image_dir_path.exists():
     raise Exception('Directory of image "'+ IMAGE_DIRECTORY + '" does not exists.')
 
 output_dir_path.mkdir(exist_ok=True)
+
+
+def metadata_to_tagline(metadata):
+    id_list = map(lambda tag: tag['id'], metadata['tags'])
+    return metadata['id'] + ' ' + ' '.join(id_list) + '\n'
+
 
 def get_image_path(file_id):
     image_path = image_dir_path / f'{(int(file_id) % 1000):04}' / f'{file_id}.jpg'
@@ -36,51 +44,39 @@ def is_image_exists(file_id):
     image_path = get_image_path(file_id)
     return image_path.exists()
 
-def get_cropped_image(file_id, aspect):
+def get_image(file_id):
     image_path = get_image_path(file_id)
     if not image_path.exists():
         return None
     img = cv2.imread(str(image_path))
-    return crop.crop_square_image(img, aspect)
+    return img
 
-def metadata_to_tagline(metadata):
-    id_list = map(lambda tag: tag['id'], metadata['tags'])
-    return metadata['id'] + ' ' + ' '.join(id_list) + '\n'
 
-def move_lineart(file_id, aspect, dest_path):
-    img = get_cropped_image(file_id, aspect)
-    if img is None:
-        return
-    
+def make_lineart_square(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     square_img, _, _ = crop.make_256px_square(img)
+    return square_img
+    #cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
 
-    cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
-
-
-def move_color_image(file_id, aspect, dest_path):
-    img = get_cropped_image(file_id, aspect)
-    if img is None:
-        return
-
+def make_square_and_sketch(img):
     sketch = sketchify.get_sketch(img)
     square_img, cropped, extend = crop.make_256px_square(img)
     square_sketch, _, _ = crop.make_256px_square(sketch, cropped, extend)
+    return (square_img, square_sketch)
+    # cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
+    # cv2.imwrite(str(dest_path / f'{file_id}_sk.png'), square_sketch)
 
-    cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
-    cv2.imwrite(str(dest_path / f'{file_id}_sk.png'), square_sketch)
 
-
-def show_image(file_id, aspect):
-    img = get_cropped_image(file_id, aspect)
-    if img is not None:
-        cv2.imshow('original', img)
-        cv2.imshow('keras-high-intensity', sketchify.get_keras_high_intensity(img))
-        skt = sketchify.get_sketch(img)
-        cv2.imshow('sketch',skt)
-        cv2.waitKey(0)
-    else:
-        print(f'cannot find {file_id}.jpg')
+# def show_image(file_id, aspect):
+#     img = get_cropped_image(file_id, aspect)
+#     if img is not None:
+#         cv2.imshow('original', img)
+#         cv2.imshow('keras-high-intensity', sketchify.get_keras_high_intensity(img))
+#         skt = sketchify.get_sketch(img)
+#         cv2.imshow('sketch',skt)
+#         cv2.waitKey(0)
+#     else:
+#         print(f'cannot find {file_id}.jpg')
 
 
 if __name__ == '__main__':
@@ -98,6 +94,10 @@ if __name__ == '__main__':
 
         tagline_list = []
         lineart_tagline_list = []
+        
+        file_batch = []
+        lineart_file_batch = []
+
         with open('metadata/' + json_file_name, 'r', encoding='utf8') as f:
             print(f'reading metadata/{json_file_name}')
             for line in f:
@@ -136,18 +136,43 @@ if __name__ == '__main__':
                         continue
 
                     tagline = metadata_to_tagline(metadata)
+                    img = get_image(file_id)
+                    batch_data = (img, file_id, aspect)
 
                     # lineart는 따로 처리 (monochrome or greyscale)
                     if TAG_MONOCHROME in tag_id_list or TAG_GREYSCALE in tag_id_list:
-                        move_lineart(file_id, aspect, lineart_dir)
+                        lineart_file_batch.append(batch_data)
                         lineart_tagline_list.append(tagline)
                     else:
-                        move_color_image(file_id, aspect, output_dir)
+                        file_batch.append(batch_data)
                         tagline_list.append(tagline)
 
                     count += 1
-                    if count % 1000 == 0:
-                        print(f'parse count: {count}')
+                    if count % 100 == 0:
+                        img_list = []
+                        line_list = []
+
+                        for img, file_id, aspect in file_batch:
+                            crop_image = crop.crop_square_image(img, aspect)
+                            square_image, square_sketch = make_square_and_sketch(crop_image)
+                            img_list.append((square_image, str(file_id)))
+                            img_list.append((square_sketch, str(file_id) + '_sk'))
+                        for img, file_id, aspect in lineart_file_batch:
+                            crop_image = crop.crop_square_image(img, aspect)
+                            square_image = make_lineart_square(crop_image)
+                            line_list.append((square_image, str(file_id)))
+                            
+                        for img, id in img_list:
+                            cv2.imwrite(str(output_dir / f'{id}.png'), img)
+                        for img, id in line_list:
+                            cv2.imwrite(str(lineart_dir / f'{id}.png'), img)
+
+
+                        file_batch.clear()
+                        lineart_file_batch.clear()
+                        break
+                        if count % 1000 == 0:
+                            print(f'parse count: {count}')
 
                 except KeyError as e:
                     print(e)
