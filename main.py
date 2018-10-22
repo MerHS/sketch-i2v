@@ -20,7 +20,7 @@ TAG_BLACKLIST = [63, 4751, 12650, 172609]
 
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
-batch_read_size = 100
+batch_read_size = 200
 
 image_dir_path = Path(IMAGE_DIRECTORY)
 output_dir_path = Path(OUTPUT_DIRECTORY)
@@ -56,15 +56,12 @@ def make_lineart_square(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     square_img, _, _ = crop.make_256px_square(img)
     return square_img
-    #cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
 
 def make_square_and_sketch(img):
     sketch = sketchify.get_sketch(img)
     square_img, cropped, extend = crop.make_256px_square(img)
     square_sketch, _, _ = crop.make_256px_square(sketch, cropped, extend)
     return (square_img, square_sketch)
-    # cv2.imwrite(str(dest_path / f'{file_id}.png'), square_img)
-    # cv2.imwrite(str(dest_path / f'{file_id}_sk.png'), square_sketch)
 
 
 # def show_image(file_id, aspect):
@@ -77,6 +74,28 @@ def make_square_and_sketch(img):
 #         cv2.waitKey(0)
 #     else:
 #         print(f'cannot find {file_id}.jpg')
+
+def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
+    img_list = []
+    line_list = []
+
+    for img, file_id, aspect in file_batch:
+        crop_image = crop.crop_square_image(img, aspect)
+        square_image, square_sketch = make_square_and_sketch(crop_image)
+        img_list.append((square_image, str(file_id)))
+        img_list.append((square_sketch, str(file_id) + '_sk'))
+    for img, file_id, aspect in lineart_file_batch:
+        crop_image = crop.crop_square_image(img, aspect)
+        square_image = make_lineart_square(crop_image)
+        line_list.append((square_image, str(file_id)))
+        
+    for img, id in img_list:
+        cv2.imwrite(str(output_dir / f'{id}.png'), img)
+    for img, id in line_list:
+        cv2.imwrite(str(lineart_dir / f'{id}.png'), img)
+
+    file_batch.clear()
+    lineart_file_batch.clear()
 
 
 if __name__ == '__main__':
@@ -149,28 +168,8 @@ if __name__ == '__main__':
 
                     count += 1
                     if count % 100 == 0:
-                        img_list = []
-                        line_list = []
+                        batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
 
-                        for img, file_id, aspect in file_batch:
-                            crop_image = crop.crop_square_image(img, aspect)
-                            square_image, square_sketch = make_square_and_sketch(crop_image)
-                            img_list.append((square_image, str(file_id)))
-                            img_list.append((square_sketch, str(file_id) + '_sk'))
-                        for img, file_id, aspect in lineart_file_batch:
-                            crop_image = crop.crop_square_image(img, aspect)
-                            square_image = make_lineart_square(crop_image)
-                            line_list.append((square_image, str(file_id)))
-                            
-                        for img, id in img_list:
-                            cv2.imwrite(str(output_dir / f'{id}.png'), img)
-                        for img, id in line_list:
-                            cv2.imwrite(str(lineart_dir / f'{id}.png'), img)
-
-
-                        file_batch.clear()
-                        lineart_file_batch.clear()
-                        break
                         if count % 1000 == 0:
                             print(f'parse count: {count}')
 
@@ -178,7 +177,8 @@ if __name__ == '__main__':
                     print(e)
                 except Exception as e:
                     print(e)
-
+                    
+        batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
                 
         with (output_dir / 'tags.txt').open('w') as tag_file:
             tag_file.writelines(tagline_list)
