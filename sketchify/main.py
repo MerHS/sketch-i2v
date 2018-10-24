@@ -92,7 +92,7 @@ def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
     for img, id in img_list:
         cv2.imwrite(str(output_dir / f'{id}.png'), img)
     for img, id in line_list:
-        cv2.imwrite(str(lineart_dir / f'{id}.png'), img)
+        cv2.imwrite(str(lineart_dir / f'{id}_sk.png'), img)
 
     file_batch.clear()
     lineart_file_batch.clear()
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         with open('metadata/' + json_file_name, 'r', encoding='utf8') as f:
             print(f'reading metadata/{json_file_name}')
             for line in f:
-                try: 
+                try:
                     metadata = json.loads(line)
                     tags = metadata['tags']
                     file_id = int(metadata['id'])
