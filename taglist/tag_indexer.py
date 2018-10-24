@@ -12,8 +12,8 @@ if __name__ == '__main__':
             [tag_id, tag_name, _] = line.split()
             tag_dict[tag_name] = int(tag_id)
 
-    iv_tag_list = list()
-    cv_tag_list = list()
+    iv_tag_list = set()
+    cv_tag_list = set()
 
     tag_keys = set(tag_dict.keys())
 
@@ -22,16 +22,19 @@ if __name__ == '__main__':
             for line in f:
                 tag_name = line.split()[0]
                 if tag_name in tag_keys:
-                    iv_tag_list.append(tag_dict[tag_name])
+                    iv_tag_list.add(tag_dict[tag_name])
 
     with open(color_variant_file, 'r') as f:
         for line in f:
             tag_name = line.split()[0]
             if tag_name in tag_keys:
-                cv_tag_list.append(tag_dict[tag_name])
+                cv_tag_list.add(tag_dict[tag_name])
+
+    iv_tag_list = list(iv_tag_list)
+    cv_tag_list = list(cv_tag_list)
 
     result = {
-        'iv_tag_list': iv_tag_list, 
+        'iv_tag_list': iv_tag_list,
         'cv_tag_list': cv_tag_list,
         'tag_dict': tag_dict
     }

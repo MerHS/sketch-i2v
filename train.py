@@ -13,7 +13,7 @@ from model.se_resnet import se_resnext50
 from model.datasets import SketchDataset
 from utils import Trainer, read_tagline_txt
 
-IMAGE_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\dataset'
+IMAGE_DIRECTORY = 'C:\\Users\\starv\\work\\dataset'
 
 def get_classid_dict():
     tagid_to_classid_dict = dict()
@@ -22,7 +22,6 @@ def get_classid_dict():
         pkl = pickle.load(f)
         iv_tag_list = pkl['iv_tag_list']
     
-    class_len = len(iv_tag_list)
     for i, tag_id in enumerate(iv_tag_list):
         tagid_to_classid_dict[tag_id] = i
 
@@ -30,9 +29,8 @@ def get_classid_dict():
 
 # TODO: calculate mean & std
 def get_dataloader(batch_size, image_dir):
-    to_normalized_tensor = [transforms.ToTensor(),
-                            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
-    data_augmentation = [transforms.RandomHorizontalFlip()]
+    to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
+    data_augmentation = [transforms.RandomHorizontalFlip(), ]
 
     image_dir_path = Path(image_dir)
     
@@ -51,15 +49,16 @@ def get_dataloader(batch_size, image_dir):
         transform = transforms.Compose(to_normalized_tensor))
 
     train_loader = DataLoader(
-        train, batch_size=batch_size, shuffle=True, num_workers=8)
+        train, batch_size=batch_size, shuffle=True, num_workers=6)
     test_loader = DataLoader(
-        test, batch_size=batch_size, shuffle=True, num_workers=8)
-    return train_loader, test_loader
+        test, batch_size=batch_size, shuffle=True, num_workers=6)
+    
+    return class_len, train_loader, test_loader
 
 def main(args):
-    train_loader, test_loader = get_dataloader(args.batch_size, args.root)
+    class_len, train_loader, test_loader = get_dataloader(args.batch_size, args.image_dir)
     gpus = list(range(torch.cuda.device_count()))
-    se_resnet = nn.DataParallel(se_resnext50(num_classes=args.num_classes),
+    se_resnet = nn.DataParallel(se_resnext50(num_classes=class_len, input_channels=1),
                                 device_ids=gpus)
 
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=0.6 / 1024 * args.batch_size, momentum=0.9, weight_decay=1e-4)
@@ -68,16 +67,34 @@ def main(args):
     trainer = Trainer(se_resnet, optimizer, F.cross_entropy, save_dir="./")
     trainer.loop(args.epoch, train_loader, test_loader, scheduler)
 
+def calculate(args):
+    _, train_loader, _ = get_dataloader(args.batch_size, args.image_dir)
+    count = 0
+    means = []
+    stds = []
+    iter = 0
+    print('start')
+    for t, c in train_loader:
+        t = t.cuda()
+        batch_list = t.reshape(args.batch_size, -1)
+        means.append(batch_list.mean())
+        stds.append(batch_list.std(1).mean())
+        count += 1
+        if count % 100 == 0:
+            iter += 1
+            print(iter, torch.Tensor(means).mean(), torch.Tensor(stds).mean())
+            if iter == 100:
+                break
 
 if __name__ == '__main__':
     import argparse
 
     p = argparse.ArgumentParser()
-    p.add_argument("--batch_size", default=256, type=int)
+    p.add_argument("--batch_size", default=128, type=int)
     p.add_argument("--epoch", default=150, type=int)
-    p.add_argument("--num_classes", default=1000, type=int)
     p.add_argument("--image_dir", default=IMAGE_DIRECTORY)
     p.add_argument("--out_dir", default="./result")
     args = p.parse_args()
 
     main(args)
+    # calculate(args)

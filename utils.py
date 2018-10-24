@@ -101,8 +101,12 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len):
             tag_exist = False
             for tag in tag_list:
                 if tag in tag_set:
-                    tag_class[classid_dict[tag]] = 1
-                    tag_exist = True
+                    try:
+                        tag_class[classid_dict[tag]] = 1
+                        tag_exist = True
+                    except IndexError as e:
+                        print(len(classid_dict), class_len, tag, classid_dict[tag])
+                        raise e
 
             if not tag_exist:
                 continue

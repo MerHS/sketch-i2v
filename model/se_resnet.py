@@ -67,12 +67,13 @@ class BottleneckX(nn.Module):
         return out
 
 class SEResNeXt(nn.Module):
-    def __init__(self, block, layers, cardinality=32, num_classes=1000):
+    def __init__(self, block, layers, input_channels=3, cardinality=32, num_classes=1000):
         super(SEResNeXt, self).__init__()
         self.cardinality = cardinality
         self.inplanes = 64
+        self.input_channels = input_channels
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
@@ -136,6 +137,7 @@ def se_resnext50(**kwargs):
     """Constructs a SE-ResNeXt-50 model.
     Args:
         num_classes = 1000 (default)
+        input_channels = 3 (default)
     """
     model = SEResNeXt(BottleneckX, [3, 4, 6, 3], **kwargs)
     return model
