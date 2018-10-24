@@ -3,7 +3,6 @@ from pathlib import Path
 import pickle
 
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 from torch import nn
 from torch.utils.data import DataLoader
@@ -64,7 +63,7 @@ def main(args):
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=0.6 / 1024 * args.batch_size, momentum=0.9, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1)
 
-    trainer = Trainer(se_resnet, optimizer, F.cross_entropy, save_dir="./")
+    trainer = Trainer(se_resnet, optimizer, save_dir="./")
     trainer.loop(args.epoch, train_loader, test_loader, scheduler)
 
 def calculate(args):
@@ -90,7 +89,7 @@ if __name__ == '__main__':
     import argparse
 
     p = argparse.ArgumentParser()
-    p.add_argument("--batch_size", default=128, type=int)
+    p.add_argument("--batch_size", default=32, type=int)
     p.add_argument("--epoch", default=150, type=int)
     p.add_argument("--image_dir", default=IMAGE_DIRECTORY)
     p.add_argument("--out_dir", default="./result")

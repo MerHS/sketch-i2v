@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 
 import torch
+from torch import nn
 import numpy as np 
 from random import randint
 
@@ -12,12 +13,11 @@ class Trainer(object):
     cuda = torch.cuda.is_available()
     torch.backends.cudnn.benchmark = True
 
-    def __init__(self, model, optimizer, loss_f, save_dir=None, save_freq=5):
+    def __init__(self, model, optimizer, save_dir=None, save_freq=5):
         self.model = model
         if self.cuda:
             model.cuda()
         self.optimizer = optimizer
-        self.loss_f = loss_f
         self.save_dir = save_dir
         self.save_freq = save_freq
 
@@ -29,20 +29,25 @@ class Trainer(object):
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
 
-            output = self.model(img_tensor)
-            loss = self.loss_f(output, data_class)
-
-            loop_loss.append(loss.data.item() / len(data_loader))
-            accuracy.append((output.data.max(1)[1] == data_class.data).sum().item())
-
             if is_train:
                 self.optimizer.zero_grad()
+
+            output = self.model(img_tensor)
+            loss_f = nn.BCEWithLogitsLoss().cuda()
+            loss = loss_f(output, data_class)
+
+            loop_loss.append(loss.data.item() / len(data_loader))
+            top_1_index = output.data.max(1)[1].view(-1, 1)
+
+            accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
+
+            if is_train:
                 loss.backward()
                 self.optimizer.step()
 
         mode = "train" if is_train else "test"
 
-        print(f">>>[{mode}] loss: {sum(loop_loss):.2f} / accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}")
+        print(f">>>[{mode}] loss: {sum(loop_loss):.2f} / top-1 accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}")
         
         return loop_loss, accuracy
 
