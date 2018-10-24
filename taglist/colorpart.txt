@@ -59,3 +59,6 @@ brown_footwear	10792
 black_bow	10746
 pink_dress	10307
 brown_legwear	10225
+light_brown_hair 8063
+multicolored_eyes 3588
+silver_eyes 4969

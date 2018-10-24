@@ -14,7 +14,7 @@ gradient_background	24341
 blue_sky	24163
 blurry	23480
 ocean	23255
-cherry_blossoms
+cherry_blossoms 34242
 beach	22653
 wind	19891
 depth_of_field	19082
