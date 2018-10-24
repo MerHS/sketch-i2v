@@ -1,6 +1,7 @@
 import pickle
 
-color_invariant_files = ['bodypart.txt', 'face_hair.txt', 'fashion.txt', 'object.txt', 'pose.txt', 'background.txt']
+color_invariant_files = ['bodypart.txt', 'face_hair.txt', 'fashion.txt', 
+    'object.txt', 'pose.txt', 'background.txt']
 color_variant_file = 'colorpart.txt'
 tag_list_file = 'tags.txt'
 
@@ -36,3 +37,5 @@ if __name__ == '__main__':
     }
     with open('tag_dump.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+
+    print(f'invariant len: {len(iv_tag_list)} / cv len: {len(cv_tag_list)} / sum: {len(iv_tag_list + cv_tag_list)}')

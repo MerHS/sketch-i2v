@@ -116,6 +116,7 @@ side-tie_bikini	29953
 skirt_lift	29693
 shirt_lift	29171
 bare_legs	28972
+turtleneck	28215
 dress_shirt	28561
 coat	28227
 striped_panties	27646
@@ -243,6 +244,7 @@ vertical_stripes	10874
 micro_bikini	10867
 ribbed_sweater	10766
 hat_removed	10607
+single_thighhigh	10717
 revealing_clothes	10514
 x_hair_ornament	10318
 bandaid	10299

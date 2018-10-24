@@ -183,5 +183,5 @@ if __name__ == '__main__':
         with (output_dir / 'tags.txt').open('w') as tag_file:
             tag_file.writelines(tagline_list)
 
-    with (lineart_dir / 'tags.txt').open('w') as tag_file:
-        tag_file.writelines(lineart_tagline_list)
+        with (lineart_dir / 'tags.txt').open('w+') as tag_file:
+            tag_file.writelines(lineart_tagline_list)
