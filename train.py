@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pickle
+
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -10,6 +12,21 @@ from torchvision import datasets, transforms
 from model.se_resnet import se_resnext50
 from model.datasets import SketchDataset
 from utils import Trainer, read_tagline_txt
+
+IMAGE_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\dataset'
+
+def get_classid_dict():
+    tagid_to_classid_dict = dict()
+    iv_tag_list = None
+    with open('taglist/tag_dump.pkl', 'rb') as f:
+        pkl = pickle.load(f)
+        iv_tag_list = pkl['iv_tag_list']
+    
+    class_len = len(iv_tag_list)
+    for i, tag_id in enumerate(iv_tag_list):
+        tagid_to_classid_dict[tag_id] = i
+
+    return tagid_to_classid_dict
 
 # TODO: calculate mean & std
 def get_dataloader(batch_size, image_dir):
@@ -22,12 +39,11 @@ def get_dataloader(batch_size, image_dir):
     train_dir = image_dir_path / "train"
     test_dir = image_dir_path / "test"
     
-    # TODO : read this
-    tag_to_idx_dict = dict()
-    class_len = len(tag_to_idx_dict.keys())
+    classid_dict = get_classid_dict()
+    class_len = len(classid_dict.keys())
 
-    (train_id_list, train_class_list) = read_tagline_txt(train_dir / "tag.txt", train_dir, tag_to_idx_dict, class_len)
-    (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tag.txt", test_dir, tag_to_idx_dict, class_len)
+    (train_id_list, train_class_list) = read_tagline_txt(train_dir / "tags.txt", train_dir, classid_dict, class_len)
+    (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, classid_dict, class_len)
 
     train = SketchDataset(train_dir, train_id_list, train_class_list, 
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
@@ -57,10 +73,10 @@ if __name__ == '__main__':
     import argparse
 
     p = argparse.ArgumentParser()
-    p.add_argument("--batch_size", default=128, type=int)
+    p.add_argument("--batch_size", default=256, type=int)
     p.add_argument("--epoch", default=150, type=int)
     p.add_argument("--num_classes", default=1000, type=int)
-    p.add_argument("--image_dir", default="./image")
+    p.add_argument("--image_dir", default=IMAGE_DIRECTORY)
     p.add_argument("--out_dir", default="./result")
     args = p.parse_args()
 

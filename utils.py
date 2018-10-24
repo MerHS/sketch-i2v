@@ -1,6 +1,9 @@
 from pathlib import Path
+import shutil
+
 import torch
 import numpy as np 
+from random import randint
 
 from tqdm import tqdm
 
@@ -72,12 +75,12 @@ class Trainer(object):
             torch.save(state, model_out_path / "model_epoch_{}.pth".format(epoch))
 
 
-def read_tagline_txt(tag_txt_path, img_dir_path, tag_to_idx_dict, class_len):
+def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len):
     # tag one-hot encoding + 파일 있는지 확인
     if not tag_txt_path.exists():
         raise Exception(f'tag list text file "{tag_txt_path}" does not exist.')
 
-    tag_set = set(tag_to_idx_dict.keys())
+    tag_set = set(classid_dict.keys())
     tag_class_list = []
     file_id_list = []
 
@@ -89,13 +92,16 @@ def read_tagline_txt(tag_txt_path, img_dir_path, tag_to_idx_dict, class_len):
             
             if not (img_dir_path / f'{file_id}.png').exists():
                 continue
+
+            if len(tag_list) < 8:
+                continue
             
             tag_class = torch.zeros(class_len, dtype=torch.float)
 
             tag_exist = False
             for tag in tag_list:
                 if tag in tag_set:
-                    tag_class[tag_to_idx_dict[tag]] = 1
+                    tag_class[classid_dict[tag]] = 1
                     tag_exist = True
 
             if not tag_exist:
@@ -106,3 +112,30 @@ def read_tagline_txt(tag_txt_path, img_dir_path, tag_to_idx_dict, class_len):
 
     return (file_id_list, tag_class_list)
 
+def random_move(tag_txt_path, img_dir_path, dataset_dir_path):
+    train_path = dataset_dir_path / 'train'
+    test_path = dataset_dir_path / 'test'
+    vaild_path = dataset_dir_path / 'validation'
+    paths = [str(train_path), str(train_path), str(train_path), str(test_path), str(vaild_path)]
+
+    for p in [test_path, train_path, vaild_path]:
+        if not p.exists():
+            p.mkdir()
+    
+    file_id_list = []
+    with tag_txt_path.open('r') as f:
+        for line in f:
+            file_id = line.split()[0]
+            if not ((img_dir_path / f'{file_id}.png').exists() and 
+                (img_dir_path / f'{file_id}_sk.png').exists()):
+                continue
+            file_id_list.append(file_id)
+
+    for file_id in file_id_list:
+        file_path = img_dir_path / f'{file_id}.png'
+        skt_path = img_dir_path / f'{file_id}_sk.png'
+        n = randint(0, 4)
+
+        shutil.move(str(file_path), paths[n])
+        shutil.move(str(skt_path), paths[n])
+        
