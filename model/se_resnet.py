@@ -86,6 +86,7 @@ class SEResNeXt(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.classifier = nn.Sigmoid()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -129,6 +130,7 @@ class SEResNeXt(nn.Module):
         x = x.view(x.size(0), -1)
 
         x = self.fc(x)
+        x = self.classifier(x)
         
         return x
 

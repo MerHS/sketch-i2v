@@ -24,14 +24,6 @@ def xdog(img, sigma=0.5, k=1.6, gamma=1, epsilon=1, phi=1):
                 aux[i, j] = 255*(1 + np.tanh(phi * (aux[i, j])))
     return aux
 
-def get_light_map(img):
-    gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (0, 0), 3)
-    highPass = gray.astype(int) - blur.astype(int)
-    highPass = highPass.astype(np.float)
-    highPass = highPass / 128.0
-    highPass = highPass[None]
-    return highPass.transpose((1,2,0))
 
 def get_light_map_single(img):
     gray = img
@@ -44,17 +36,6 @@ def get_light_map_single(img):
     highPass = highPass / 128.0
     return highPass
 
-def get_light_map_drawer3(img):
-    gray = img
-    blur = cv2.blur(gray,ksize=(5,5))
-    highPass = gray.astype(int) - blur.astype(int) + 255
-    highPass[highPass < 0 ] = 0
-    highPass[highPass > 255] = 255
-    highPass = highPass.astype(np.float)
-    highPass = highPass / 255.0
-    highPass = 1 - highPass
-    return highPass
-
 def normalize_pic(img):
     img = img / np.max(img)
     return img
@@ -63,7 +44,6 @@ def resize_img_512_3d(img):
     zeros = np.zeros((1,3,512,512), dtype=np.float)
     zeros[0 , 0 : img.shape[0] , 0 : img.shape[1] , 0 : img.shape[2]] = img
     return zeros.transpose((1,2,3,0))
-
 
 def to_keras_enhanced(img):
     mat = img.astype(np.float)
@@ -76,7 +56,6 @@ def to_keras_enhanced(img):
     mat = ndimage.median_filter(mat, 1)
 
     return mat
-
 
 def get_keras_enhanced(img):
     from_mat = img
@@ -103,6 +82,8 @@ def get_keras_enhanced(img):
 
     light_map = normalize_pic(light_map)
     light_map = resize_img_512_3d(light_map)
+
+    # TODO: batch this!
     line_mat = mod.predict(light_map, batch_size=1)
     line_mat = line_mat.transpose((3, 1, 2, 0))[0]
     line_mat = line_mat[0:int(new_height), 0:int(new_width), :]
@@ -113,9 +94,9 @@ def get_keras_enhanced(img):
     return keras_enhanced
 
 
-def get_keras_high_intensity(img, gamma=1.7):
+def get_keras_high_intensity(img, intensity=1.7):
     keras_img = get_keras_enhanced(img)
-    return (255 * ((keras_img / 255.0) ** gamma)).astype(np.uint8)
+    return (255 * ((keras_img / 255.0) ** intensity)).astype(np.uint8)
 
 
 def get_xdog_image(img, sigma=0.4, k=2.5, gamma=0.95, epsilon=-0.5, phi=10**9):
@@ -123,18 +104,26 @@ def get_xdog_image(img, sigma=0.4, k=2.5, gamma=0.95, epsilon=-0.5, phi=10**9):
     return xdog_image
 
     
-def get_sketch(img, gamma=1.7, degamma=(1/1.5)):
+def get_sketch(img, intensity=1.7, degamma=(1/1.5), blend=True, **kwargs):
     gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    keras_image = get_keras_high_intensity(img, gamma=gamma)
-    xdog_image = get_xdog_image(gray_image)
+    keras_image = get_keras_high_intensity(img, intensity=intensity)
 
-    xdog_blurred = cv2.GaussianBlur(xdog_image, (5, 5), 1)
-    xdog_residual_blur = cv2.addWeighted(xdog_blurred, 0.75, xdog_image, 0.25, 0)
+    if blend:
+        xdog_image = get_xdog_image(gray_image, **kwargs)
+        xdog_blurred = cv2.GaussianBlur(xdog_image, (5, 5), 1)
+        xdog_residual_blur = cv2.addWeighted(xdog_blurred, 0.75, xdog_image, 0.25, 0)
 
-    keras_image = cv2.resize(keras_image, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
-    
-    blended_image = cv2.addWeighted(xdog_residual_blur, 0.25, keras_image, 0.75, 0)
+        if keras_image.shape != xdog_residual_blur.shape:
+            keras_image = cv2.resize(keras_image, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
+        
+        blended_image = cv2.addWeighted(xdog_residual_blur, 0.25, keras_image, 0.75, 0)
+    else:
+        blended_image = keras_image
+
     degamma_image = 255 * ((blended_image / 255.0) ** degamma)
     degamma_image = degamma_image.astype(np.uint8)
 
     return degamma_image
+
+def get_random_sketch_pair(img):
+    xdog_image = get_xdog_image(img, sigma=0.5)

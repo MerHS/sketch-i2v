@@ -20,6 +20,7 @@ class Trainer(object):
         self.optimizer = optimizer
         self.save_dir = save_dir
         self.save_freq = save_freq
+        self.loss_f = nn.BCELoss().cuda()
 
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
@@ -33,8 +34,8 @@ class Trainer(object):
                 self.optimizer.zero_grad()
 
             output = self.model(img_tensor)
-            loss_f = nn.BCEWithLogitsLoss().cuda()
-            loss = loss_f(output, data_class)
+            
+            loss = self.loss_f(output, data_class)
 
             loop_loss.append(loss.data.item() / len(data_loader))
             top_1_index = output.data.max(1)[1].view(-1, 1)
