@@ -20,7 +20,7 @@ TAG_BLACKLIST = [63, 4751, 12650, 172609]
 
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
-batch_read_size = 200
+batch_read_size = 16
 
 image_dir_path = Path(IMAGE_DIRECTORY)
 output_dir_path = Path(OUTPUT_DIRECTORY)
@@ -64,32 +64,32 @@ def make_square_and_sketch(img):
     return (square_img, square_sketch)
 
 
-# def show_image(file_id, aspect):
-#     img = get_cropped_image(file_id, aspect)
-#     if img is not None:
-#         cv2.imshow('original', img)
-#         cv2.imshow('keras-high-intensity', sketchify.get_keras_high_intensity(img))
-#         skt = sketchify.get_sketch(img)
-#         cv2.imshow('sketch',skt)
-#         cv2.waitKey(0)
-#     else:
-#         print(f'cannot find {file_id}.jpg')
-
 def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
-    img_list = []
+    export_list = []
+    crop_list = []
     line_list = []
+    sketch_list = []
 
-    for img, file_id, aspect in file_batch:
-        crop_image = crop.crop_square_image(img, aspect)
-        square_image, square_sketch = make_square_and_sketch(crop_image)
-        img_list.append((square_image, str(file_id)))
-        img_list.append((square_sketch, str(file_id) + '_sk'))
+    if len(file_batch) != 0:
+        for img, _, aspect in file_batch:
+            crop_image = crop.crop_square_image(img, aspect)
+            crop_list.append(crop_image)
+    
+        sketch_list = sketchify.batch_keras_enhanced(crop_list)
+    
+        for (_, file_id, _), img, sketch in zip(file_batch, crop_list, sketch_list):
+            square_sketch, cropped, extend = crop.make_256px_square(sketch)
+            square_image, _, _ = crop.make_256px_square(img, cropped, extend)
+            
+            export_list.append((square_image, str(file_id)))
+            export_list.append((square_sketch, str(file_id) + '_sk'))
+
     for img, file_id, aspect in lineart_file_batch:
         crop_image = crop.crop_square_image(img, aspect)
         square_image = make_lineart_square(crop_image)
         line_list.append((square_image, str(file_id)))
         
-    for img, id in img_list:
+    for img, id in export_list:
         cv2.imwrite(str(output_dir / f'{id}.png'), img)
     for img, id in line_list:
         cv2.imwrite(str(lineart_dir / f'{id}_sk.png'), img)
@@ -163,13 +163,14 @@ if __name__ == '__main__':
                         lineart_file_batch.append(batch_data)
                         lineart_tagline_list.append(tagline)
                     else:
+                        count += 1
                         file_batch.append(batch_data)
                         tagline_list.append(tagline)
 
-                    count += 1
-                    if count % 100 == 0:
+                    
+                    if count % batch_read_size == 0:
                         batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
-
+                        
                         if count % 1000 == 0:
                             print(f'parse count: {count}')
 
@@ -177,9 +178,9 @@ if __name__ == '__main__':
                     print(e)
                 except Exception as e:
                     print(e)
-                    
+        
         batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
-                
+        
         with (output_dir / 'tags.txt').open('w') as tag_file:
             tag_file.writelines(tagline_list)
 

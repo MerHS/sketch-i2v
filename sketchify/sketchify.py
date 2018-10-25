@@ -24,6 +24,10 @@ def xdog(img, sigma=0.5, k=1.6, gamma=1, epsilon=1, phi=1):
                 aux[i, j] = 255*(1 + np.tanh(phi * (aux[i, j])))
     return aux
 
+def get_xdog_image(img, sigma=0.4, k=2.5, gamma=0.95, epsilon=-0.5, phi=10**9):
+    xdog_image = xdog(img, sigma=sigma, k=k, gamma=gamma, epsilon=epsilon, phi=phi).astype(np.uint8)
+    return xdog_image
+
 
 def get_light_map_single(img):
     gray = img
@@ -57,7 +61,7 @@ def to_keras_enhanced(img):
 
     return mat
 
-def get_keras_enhanced(img):
+def get_light_map(img):
     from_mat = img
     width = float(from_mat.shape[1])
     height = float(from_mat.shape[0])
@@ -83,27 +87,48 @@ def get_keras_enhanced(img):
     light_map = normalize_pic(light_map)
     light_map = resize_img_512_3d(light_map)
 
+    return new_height, new_width, light_map
+
+
+def get_keras_enhanced(img):
+    new_height, new_width, light_map = get_light_map(img)
+
     # TODO: batch this!
     line_mat = mod.predict(light_map, batch_size=1)
+
     line_mat = line_mat.transpose((3, 1, 2, 0))[0]
     line_mat = line_mat[0:int(new_height), 0:int(new_width), :]
     line_mat = np.amax(line_mat, 2)
 
     keras_enhanced = to_keras_enhanced(line_mat)
-
     return keras_enhanced
-
 
 def get_keras_high_intensity(img, intensity=1.7):
     keras_img = get_keras_enhanced(img)
     return (255 * ((keras_img / 255.0) ** intensity)).astype(np.uint8)
 
+def batch_keras_enhanced(img_list):
+    light_maps = list(map(get_light_map, img_list))
 
-def get_xdog_image(img, sigma=0.4, k=2.5, gamma=0.95, epsilon=-0.5, phi=10**9):
-    xdog_image = xdog(img, sigma=sigma, k=k, gamma=gamma, epsilon=epsilon, phi=phi).astype(np.uint8)
-    return xdog_image
+    hw_list = [(h, w) for h, w, _ in light_maps]
+    light_map = [l for _, _, l in light_maps]
 
+    batch_light_map = np.concatenate(light_map, axis=0)
+    batch_line_mat = mod.predict(batch_light_map, batch_size=len(img_list))
+
+    mat_list = np.array_split(batch_line_mat, len(img_list))
+    batch_line_mat = map(lambda map: map.transpose((3, 1, 2, 0))[0], mat_list)
+
+    result_list = []
+    for line_mat, (new_height, new_width) in zip(batch_line_mat, hw_list):
+        mat = line_mat[0:int(new_height), 0:int(new_width), :]
+        mat = np.amax(mat, 2)
+        keras_enhanced = to_keras_enhanced(mat)
+        result_list.append(keras_enhanced)\
     
+    return result_list
+    
+
 def get_sketch(img, intensity=1.7, degamma=(1/1.5), blend=True, **kwargs):
     gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     keras_image = get_keras_high_intensity(img, intensity=intensity)
@@ -125,5 +150,3 @@ def get_sketch(img, intensity=1.7, degamma=(1/1.5), blend=True, **kwargs):
 
     return degamma_image
 
-def get_random_sketch_pair(img):
-    xdog_image = get_xdog_image(img, sigma=0.5)
