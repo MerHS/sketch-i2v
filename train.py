@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
 from model.datasets import SketchDataset
-from utils import Trainer, read_tagline_txt
+from utils import Trainer, read_tagline_txt, random_move
 
 IMAGE_DIRECTORY = 'C:\\Users\\starv\\work\\dataset'
 

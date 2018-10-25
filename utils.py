@@ -47,7 +47,7 @@ class Trainer(object):
 
         mode = "train" if is_train else "test"
 
-        print(f">>>[{mode}] loss: {sum(loop_loss):.2f} / top-1 accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}")
+        print(f">>>[{mode}] loss: {sum(loop_loss):.10f} / top-1 accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}")
         
         return loop_loss, accuracy
 

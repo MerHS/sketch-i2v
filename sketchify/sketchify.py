@@ -5,9 +5,9 @@ sketchKeras: modified from https://github.com/lllyasviel/sketchKeras
 import cv2
 import numpy as np
 from keras.models import load_model
-from helper import *
+from scipy import ndimage
 
-mod = load_model('mod.h5')
+mod = load_model('sketchify/mod.h5')
 
 def dog(img, size=(0,0), k=1.6, sigma=0.5, gamma=1):
     img1 = cv2.GaussianBlur(img, size, sigma)
@@ -23,6 +23,59 @@ def xdog(img, sigma=0.5, k=1.6, gamma=1, epsilon=1, phi=1):
             else:
                 aux[i, j] = 255*(1 + np.tanh(phi * (aux[i, j])))
     return aux
+
+def get_light_map(img):
+    gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (0, 0), 3)
+    highPass = gray.astype(int) - blur.astype(int)
+    highPass = highPass.astype(np.float)
+    highPass = highPass / 128.0
+    highPass = highPass[None]
+    return highPass.transpose((1,2,0))
+
+def get_light_map_single(img):
+    gray = img
+    gray = gray[None]
+    gray = gray.transpose((1,2,0))
+    blur = cv2.GaussianBlur(gray, (0, 0), 3)
+    gray = gray.reshape((gray.shape[0],gray.shape[1]))
+    highPass = gray.astype(int) - blur.astype(int)
+    highPass = highPass.astype(np.float)
+    highPass = highPass / 128.0
+    return highPass
+
+def get_light_map_drawer3(img):
+    gray = img
+    blur = cv2.blur(gray,ksize=(5,5))
+    highPass = gray.astype(int) - blur.astype(int) + 255
+    highPass[highPass < 0 ] = 0
+    highPass[highPass > 255] = 255
+    highPass = highPass.astype(np.float)
+    highPass = highPass / 255.0
+    highPass = 1 - highPass
+    return highPass
+
+def normalize_pic(img):
+    img = img / np.max(img)
+    return img
+
+def resize_img_512_3d(img):
+    zeros = np.zeros((1,3,512,512), dtype=np.float)
+    zeros[0 , 0 : img.shape[0] , 0 : img.shape[1] , 0 : img.shape[2]] = img
+    return zeros.transpose((1,2,3,0))
+
+
+def to_keras_enhanced(img):
+    mat = img.astype(np.float)
+    mat[mat<0.1] = 0
+    mat = - mat + 1
+    mat = mat * 255.0
+    mat[mat < 0] = 0
+    mat[mat > 255] = 255
+    mat=mat.astype(np.uint8)
+    mat = ndimage.median_filter(mat, 1)
+
+    return mat
 
 
 def get_keras_enhanced(img):
@@ -77,6 +130,9 @@ def get_sketch(img, gamma=1.7, degamma=(1/1.5)):
 
     xdog_blurred = cv2.GaussianBlur(xdog_image, (5, 5), 1)
     xdog_residual_blur = cv2.addWeighted(xdog_blurred, 0.75, xdog_image, 0.25, 0)
+
+    keras_image = cv2.resize(keras_image, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
+    
     blended_image = cv2.addWeighted(xdog_residual_blur, 0.25, keras_image, 0.75, 0)
     degamma_image = 255 * ((blended_image / 255.0) ** degamma)
     degamma_image = degamma_image.astype(np.uint8)
