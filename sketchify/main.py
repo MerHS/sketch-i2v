@@ -20,7 +20,8 @@ TAG_BLACKLIST = [63, 4751, 12650, 172609]
 
 AVAILABLE_EXT = ['jpeg', 'jpg', 'bmp', 'png']
 
-batch_read_size = 16
+batch_read_size = 256
+batch_input_size = 16
 
 image_dir_path = Path(IMAGE_DIRECTORY)
 output_dir_path = Path(OUTPUT_DIRECTORY)
@@ -68,14 +69,17 @@ def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
     export_list = []
     crop_list = []
     line_list = []
-    sketch_list = []
 
     if len(file_batch) != 0:
         for img, _, aspect in file_batch:
             crop_image = crop.crop_square_image(img, aspect)
             crop_list.append(crop_image)
-    
-        sketch_list = sketchify.batch_keras_enhanced(crop_list)
+
+        crop_chunk = [crop_list[i:i + batch_input_size] for i in range(0, len(crop_list), batch_input_size)]
+        sketch_list = []
+        
+        for chunk in crop_chunk:
+            sketch_list.extend(sketchify.batch_keras_enhanced(chunk))
     
         for (_, file_id, _), img, sketch in zip(file_batch, crop_list, sketch_list):
             square_sketch, cropped, extend = crop.make_256px_square(sketch)
@@ -166,12 +170,11 @@ if __name__ == '__main__':
                         count += 1
                         file_batch.append(batch_data)
                         tagline_list.append(tagline)
-
                     
                     if count % batch_read_size == 0:
                         batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
-                        
-                        if count % 1000 == 0:
+
+                        if count % (batch_read_size * 10) == 0:
                             print(f'parse count: {count}')
 
                 except KeyError as e:
@@ -180,7 +183,7 @@ if __name__ == '__main__':
                     print(e)
         
         batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
-        
+
         with (output_dir / 'tags.txt').open('w') as tag_file:
             tag_file.writelines(tagline_list)
 
