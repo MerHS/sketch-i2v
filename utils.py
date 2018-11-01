@@ -62,14 +62,14 @@ class Trainer(object):
         with torch.no_grad():
             loss, correct = self._iteration(data_loader, is_train=False)
 
-    def loop(self, epochs, train_data, test_data, scheduler=None):
+    def loop(self, epochs, train_data, test_data, scheduler=None, do_save=True):
         for ep in range(1, epochs + 1):
             if scheduler is not None:
                 scheduler.step()
             print("epochs: {}".format(ep))
             self.train(train_data)
             self.test(test_data)
-            if ep % self.save_freq:
+            if do_save and ep % self.save_freq:
                 self.save(ep)
 
     def save(self, epoch, **kwargs):

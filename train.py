@@ -38,7 +38,7 @@ def get_dataloader(args):
 
     data_dir_path = Path(data_dir)
     
-    train_dir = data_dir_path / "train"
+    train_dir = data_dir_path / ("train" if not args.valid else "valid")
     test_dir = data_dir_path / "test"
     
     classid_dict = get_classid_dict()
@@ -50,6 +50,7 @@ def get_dataloader(args):
     (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, classid_dict, class_len)
 
     print('making train dataset...')
+    
     train = SketchDataset(train_dir, train_id_list, train_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
     test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=args.data_size//10,
@@ -80,7 +81,7 @@ def main(args):
     trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
     
     print(f'start loop')
-    trainer.loop(args.epoch, train_loader, test_loader, scheduler)
+    trainer.loop(args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
 
 def calculate(args):
     _, train_loader, _ = get_dataloader(args)
@@ -116,6 +117,7 @@ if __name__ == '__main__':
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default=OUT_DIRECTORY)
     p.add_argument("--data_size", default=0, type=int)
+    p.add_argument("--valid", action="store_true")
     args = p.parse_args()
 
     main(args)
