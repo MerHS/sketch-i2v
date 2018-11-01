@@ -28,7 +28,6 @@ def get_classid_dict():
 
     return tagid_to_classid_dict
 
-# TODO: calculate mean & std
 def get_dataloader(args):
     batch_size = args.batch_size
     data_dir = args.data_dir
@@ -51,9 +50,10 @@ def get_dataloader(args):
 
     print('making train dataset...')
     
+    test_size = args.data_size // 10 if args.valid else args.data_size
     train = SketchDataset(train_dir, train_id_list, train_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
-    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=args.data_size//10,
+    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=test_size,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     
     print('making dataloader...')
@@ -110,10 +110,10 @@ if __name__ == '__main__':
     p.add_argument("--epoch", default=100, type=int)
     p.add_argument("--thread", default=8, type=int)
     p.add_argument("--gpu", default=1, type=int)
-    p.add_argument("--lr", default=0.025)
+    p.add_argument("--lr", default=0.025, type=float)
     p.add_argument("--lr_step", default=25, type=int)
-    p.add_argument("--momentum", default=0.9)
-    p.add_argument("--decay", default=0.0005)
+    p.add_argument("--momentum", default=0.9, type=float)
+    p.add_argument("--decay", default=0.0005, type=float)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default=OUT_DIRECTORY)
     p.add_argument("--data_size", default=0, type=int)
