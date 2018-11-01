@@ -44,14 +44,17 @@ def get_dataloader(args):
     classid_dict = get_classid_dict()
     class_len = len(classid_dict.keys())
 
+    print('reading train set tagline')
     (train_id_list, train_class_list) = read_tagline_txt(train_dir / "tags.txt", train_dir, classid_dict, class_len)
+    print('reading test set tagline')
     (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, classid_dict, class_len)
 
+    print('making train dataset...')
     train = SketchDataset(train_dir, train_id_list, train_class_list, 
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
     test = SketchDataset(test_dir, test_id_list, test_class_list, 
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
-
+    print('making dataloader...')
     train_loader = DataLoader(
         train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
     test_loader = DataLoader(
@@ -60,17 +63,22 @@ def get_dataloader(args):
     return class_len, train_loader, test_loader
 
 def main(args):
+    print('making dataloader...')
     class_len, train_loader, test_loader = get_dataloader(args)
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
-    gpus = args[:gpu_count]
+    gpus = gpus[:gpu_count]
     se_resnet = nn.DataParallel(se_resnext50(num_classes=class_len, input_channels=1),
                                 device_ids=gpus)
 
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1)
 
+    print(f'training params: {args}')
+    print('setting trainer...')
     trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
+    
+    print(f'start loop')
     trainer.loop(args.epoch, train_loader, test_loader, scheduler)
 
 def calculate(args):
