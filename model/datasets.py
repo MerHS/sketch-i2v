@@ -3,7 +3,7 @@ from random import uniform
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data.dataset import Dataset  # For custom datasets
-from sketchify.sketchify import blend_xdog_and_sketch, add_intensity
+from sketchify.xdog_blend import blend_xdog_and_sketch, add_intensity
 
 def pseudo_uniform(id, a, b):
     return (((id * 1.253 + a * 324.2351 + b * 534.342) * 20147.2312369804) + 0.12949) % (b - a) + a
