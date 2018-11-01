@@ -50,9 +50,9 @@ def get_dataloader(args):
     (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, classid_dict, class_len)
 
     print('making train dataset...')
-    train = SketchDataset(train_dir, train_id_list, train_class_list, 
+    train = SketchDataset(train_dir, train_id_list, train_class_list, override_len=args.data_size
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
-    test = SketchDataset(test_dir, test_id_list, test_class_list, 
+    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=args.data_size//10
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     print('making dataloader...')
     train_loader = DataLoader(
@@ -113,6 +113,7 @@ if __name__ == '__main__':
     p.add_argument("--decay", default=0.0005)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default=OUT_DIRECTORY)
+    p.add_argument("--data_size", default=0, type=int)
     args = p.parse_args()
 
     main(args)
