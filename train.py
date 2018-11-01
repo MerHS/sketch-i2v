@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pickle
+import os.path
 
 import torch
 import torch.optim as optim
@@ -10,9 +11,9 @@ from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
 from model.datasets import SketchDataset
-from utils import Trainer, read_tagline_txt, random_move
+from utils import Trainer, read_tagline_txt
 
-IMAGE_DIRECTORY = 'C:\\Users\\starv\\work\\dataset'
+DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 
 def get_classid_dict():
     tagid_to_classid_dict = dict()
@@ -63,7 +64,7 @@ def main(args):
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=0.6 / 1024 * args.batch_size, momentum=0.9, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1)
 
-    trainer = Trainer(se_resnet, optimizer, save_dir="./")
+    trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
     trainer.loop(args.epoch, train_loader, test_loader, scheduler)
 
 def calculate(args):
@@ -90,8 +91,8 @@ if __name__ == '__main__':
 
     p = argparse.ArgumentParser()
     p.add_argument("--batch_size", default=32, type=int)
-    p.add_argument("--epoch", default=150, type=int)
-    p.add_argument("--image_dir", default=IMAGE_DIRECTORY)
+    p.add_argument("--epoch", default=100, type=int)
+    p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default="./result")
     args = p.parse_args()
 

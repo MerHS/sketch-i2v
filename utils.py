@@ -121,31 +121,3 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len):
             tag_class_list.append(tag_class)
 
     return (file_id_list, tag_class_list)
-
-def random_move(tag_txt_path, img_dir_path, dataset_dir_path):
-    train_path = dataset_dir_path / 'train'
-    test_path = dataset_dir_path / 'test'
-    vaild_path = dataset_dir_path / 'validation'
-    paths = [str(train_path), str(train_path), str(train_path), str(test_path), str(vaild_path)]
-
-    for p in [test_path, train_path, vaild_path]:
-        if not p.exists():
-            p.mkdir()
-    
-    file_id_list = []
-    with tag_txt_path.open('r') as f:
-        for line in f:
-            file_id = line.split()[0]
-            if not ((img_dir_path / f'{file_id}.png').exists() and 
-                (img_dir_path / f'{file_id}_sk.png').exists()):
-                continue
-            file_id_list.append(file_id)
-
-    for file_id in file_id_list:
-        file_path = img_dir_path / f'{file_id}.png'
-        skt_path = img_dir_path / f'{file_id}_sk.png'
-        n = randint(0, 4)
-
-        shutil.move(str(file_path), paths[n])
-        shutil.move(str(skt_path), paths[n])
-        

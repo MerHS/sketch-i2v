@@ -2,6 +2,7 @@
 __pycache__
 .vscode
 512px/*
+256px/*
 metadata/*
 mod.h5
 *.pth
