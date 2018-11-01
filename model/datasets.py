@@ -11,7 +11,7 @@ def real_uniform(id, a, b):
     return uniform(a, b)
 
 class SketchDataset(Dataset):
-    def __init__(self, image_dir_path, file_id_list, tag_class_list, transform=None, is_train=True):
+    def __init__(self, image_dir_path, file_id_list, tag_class_list, override_len=None, transform=None, is_train=True):
         self.image_dir_path = image_dir_path
         self.file_id_list = file_id_list
         self.tag_class_list = tag_class_list
@@ -19,6 +19,7 @@ class SketchDataset(Dataset):
         self.data_len = len(file_id_list)
         self.is_train = is_train
         self.rand_gen = real_uniform if is_train else pseudo_uniform
+        self.override_len = override_len
 
     def __getitem__(self, index):
         file_id = self.file_id_list[index]
@@ -49,6 +50,8 @@ class SketchDataset(Dataset):
         return (sketch_img, tag_class)
 
     def __len__(self):
+        if self.override_len > 0:
+            return self.override_len
         return self.data_len
 
 class ColorAndSketchDataset(SketchDataset):
