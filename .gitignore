@@ -3,6 +3,7 @@ __pycache__
 .vscode
 512px/*
 256px/*
+dataset/*
 metadata/*
 mod.h5
 *.pth

@@ -28,7 +28,10 @@ def get_classid_dict():
     return tagid_to_classid_dict
 
 # TODO: calculate mean & std
-def get_dataloader(batch_size, image_dir):
+def get_dataloader(args):
+    batch_size = args.batch_size
+    image_dir = args.image_dir
+
     to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
     data_augmentation = [transforms.RandomHorizontalFlip(), ]
 
@@ -49,26 +52,28 @@ def get_dataloader(batch_size, image_dir):
         transform = transforms.Compose(to_normalized_tensor))
 
     train_loader = DataLoader(
-        train, batch_size=batch_size, shuffle=True, num_workers=6)
+        train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
     test_loader = DataLoader(
-        test, batch_size=batch_size, shuffle=True, num_workers=6)
+        test, batch_size=batch_size, shuffle=True, num_workers=args.thread)
     
     return class_len, train_loader, test_loader
 
 def main(args):
-    class_len, train_loader, test_loader = get_dataloader(args.batch_size, args.image_dir)
+    class_len, train_loader, test_loader = get_dataloader(args)
+    gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
+    gpus = args[:gpu_count]
     se_resnet = nn.DataParallel(se_resnext50(num_classes=class_len, input_channels=1),
                                 device_ids=gpus)
 
-    optimizer = optim.SGD(params=se_resnet.parameters(), lr=0.6 / 1024 * args.batch_size, momentum=0.9, weight_decay=1e-4)
+    optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1)
 
     trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
     trainer.loop(args.epoch, train_loader, test_loader, scheduler)
 
 def calculate(args):
-    _, train_loader, _ = get_dataloader(args.batch_size, args.image_dir)
+    _, train_loader, _ = get_dataloader(args)
     count = 0
     means = []
     stds = []
@@ -92,6 +97,11 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument("--batch_size", default=32, type=int)
     p.add_argument("--epoch", default=100, type=int)
+    p.add_argument("--thread", default=8, type=int)
+    p.add_argument("--gpu", default=1, type=int)
+    p.add_argument("--lr", default=0.05)
+    p.add_argument("--momentum", default=0.9)
+    p.add_argument("--decay", default=0.0005)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default="./result")
     args = p.parse_args()
