@@ -14,6 +14,7 @@ from model.datasets import SketchDataset
 from utils import Trainer, read_tagline_txt
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
+OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
 
 def get_classid_dict():
     tagid_to_classid_dict = dict()
@@ -30,15 +31,15 @@ def get_classid_dict():
 # TODO: calculate mean & std
 def get_dataloader(args):
     batch_size = args.batch_size
-    image_dir = args.image_dir
+    data_dir = args.data_dir
 
     to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
     data_augmentation = [transforms.RandomHorizontalFlip(), ]
 
-    image_dir_path = Path(image_dir)
+    data_dir_path = Path(data_dir)
     
-    train_dir = image_dir_path / "train"
-    test_dir = image_dir_path / "test"
+    train_dir = data_dir_path / "train"
+    test_dir = data_dir_path / "test"
     
     classid_dict = get_classid_dict()
     class_len = len(classid_dict.keys())
@@ -103,7 +104,7 @@ if __name__ == '__main__':
     p.add_argument("--momentum", default=0.9)
     p.add_argument("--decay", default=0.0005)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
-    p.add_argument("--out_dir", default="./result")
+    p.add_argument("--out_dir", default=OUT_DIRECTORY)
     args = p.parse_args()
 
     main(args)
