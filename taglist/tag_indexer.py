@@ -1,8 +1,8 @@
 import pickle
 
 color_invariant_files = ['bodypart.txt', 'face_hair.txt', 'fashion.txt', 
-    'object.txt', 'pose.txt', 'background.txt']
-color_variant_file = 'colorpart.txt'
+    'object.txt', 'pose.txt']
+color_variant_files = ['colorpart.txt', 'background.txt']
 tag_list_file = 'tags.txt'
 
 if __name__ == '__main__':
@@ -24,11 +24,12 @@ if __name__ == '__main__':
                 if tag_name in tag_keys:
                     iv_tag_list.add(tag_dict[tag_name])
 
-    with open(color_variant_file, 'r') as f:
-        for line in f:
-            tag_name = line.split()[0]
-            if tag_name in tag_keys:
-                cv_tag_list.add(tag_dict[tag_name])
+    for fn in color_variant_files:
+        with open(fn, 'r') as f:
+            for line in f:
+                tag_name = line.split()[0]
+                if tag_name in tag_keys:
+                    cv_tag_list.add(tag_dict[tag_name])
 
     iv_tag_list = list(iv_tag_list)
     cv_tag_list = list(cv_tag_list)

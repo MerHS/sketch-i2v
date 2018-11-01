@@ -4,7 +4,6 @@ sky	103574
 day	87650
 shiny	52633
 indoors	37293
-game_cg	34871
 sparkle	31163
 glowing	31255
 night	28811
@@ -22,7 +21,6 @@ sunlight	18661
 nature	18206
 grass	17488
 blue_background	16685
-full_moon	16058
 pink_background	15445
 christmas	15207
 snow	14654
