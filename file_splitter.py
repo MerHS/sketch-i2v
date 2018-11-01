@@ -66,7 +66,9 @@ if __name__ == '__main__':
     args = p.parse_args()
 
     out_dir_path = Path(args.out_dir)
-
+    if not out_dir_path.exists():
+        out_dir_path.mkdir()
+        
     for image_dir in Path(args.image_root_dir).iterdir():
         print(f'moving {image_dir}')
         if image_dir.is_dir():
