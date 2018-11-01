@@ -49,7 +49,7 @@ def get_dataloader(args):
     train = SketchDataset(train_dir, train_id_list, train_class_list, 
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
     test = SketchDataset(test_dir, test_id_list, test_class_list, 
-        transform = transforms.Compose(to_normalized_tensor))
+        transform = transforms.Compose(to_normalized_tensor), is_train=False)
 
     train_loader = DataLoader(
         train, batch_size=batch_size, shuffle=True, num_workers=args.thread)

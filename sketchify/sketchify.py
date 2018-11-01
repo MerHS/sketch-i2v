@@ -103,9 +103,15 @@ def get_keras_enhanced(img):
     keras_enhanced = to_keras_enhanced(line_mat)
     return keras_enhanced
 
+def add_intensity(img, intensity):
+    if intensity == 1:
+        return img
+    inten_const = 255.0 ** (1 - intensity)
+    return (inten_const * (img ** intensity)).astype(np.uint8)
+
 def get_keras_high_intensity(img, intensity=1.7):
     keras_img = get_keras_enhanced(img)
-    return (255 * ((keras_img / 255.0) ** intensity)).astype(np.uint8)
+    return add_intensity(keras_img, intensity)
 
 def batch_keras_enhanced(img_list):
     light_maps = list(map(get_light_map, img_list))
@@ -129,24 +135,24 @@ def batch_keras_enhanced(img_list):
     return result_list
     
 
-def get_sketch(img, intensity=1.7, degamma=(1/1.5), blend=True, **kwargs):
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+def get_sketch(img, intensity=1.7, degamma=(1/1.5), blend=0, **kwargs):
     keras_image = get_keras_high_intensity(img, intensity=intensity)
+    return blend_xdog_and_sketch(img, keras_image, intensity, degamma, blend, **kwargs)
 
-    if blend:
+def blend_xdog_and_sketch(illust, sketch, intensity=1.7, degamma=(1/1.5), blend=0, **kwargs):
+    gray_image = cv2.cvtColor(illust, cv2.COLOR_BGR2GRAY)
+    gamma_sketch = add_intensity(sketch, intensity)
+
+    if blend > 0:
         xdog_image = get_xdog_image(gray_image, **kwargs)
         xdog_blurred = cv2.GaussianBlur(xdog_image, (5, 5), 1)
         xdog_residual_blur = cv2.addWeighted(xdog_blurred, 0.75, xdog_image, 0.25, 0)
 
-        if keras_image.shape != xdog_residual_blur.shape:
-            keras_image = cv2.resize(keras_image, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
+        if gamma_sketch.shape != xdog_residual_blur.shape:
+            gamma_sketch = cv2.resize(gamma_sketch, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
         
-        blended_image = cv2.addWeighted(xdog_residual_blur, 0.25, keras_image, 0.75, 0)
+        blended_image = cv2.addWeighted(xdog_residual_blur, blend, gamma_sketch, (1-blend), 0)
     else:
-        blended_image = keras_image
+        blended_image = gamma_sketch
 
-    degamma_image = 255 * ((blended_image / 255.0) ** degamma)
-    degamma_image = degamma_image.astype(np.uint8)
-
-    return degamma_image
-
+    return add_intensity(blended_image, degamma)
