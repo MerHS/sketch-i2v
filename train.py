@@ -38,7 +38,7 @@ def get_dataloader(args):
 
     data_dir_path = Path(data_dir)
     
-    train_dir = data_dir_path / ("train" if not args.valid else "valid")
+    train_dir = data_dir_path / ("train" if not args.valid else "validation")
     test_dir = data_dir_path / "test"
     
     classid_dict = get_classid_dict()
