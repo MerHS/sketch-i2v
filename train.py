@@ -54,6 +54,7 @@ def get_dataloader(args):
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
     test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=args.data_size//10,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
+    
     print('making dataloader...')
     train_loader = DataLoader(
         train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
@@ -72,7 +73,7 @@ def main(args):
                                 device_ids=gpus)
 
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=0.1)
 
     print(f'training params: {args}')
     print('setting trainer...')
@@ -108,7 +109,8 @@ if __name__ == '__main__':
     p.add_argument("--epoch", default=100, type=int)
     p.add_argument("--thread", default=8, type=int)
     p.add_argument("--gpu", default=1, type=int)
-    p.add_argument("--lr", default=0.05)
+    p.add_argument("--lr", default=0.025)
+    p.add_argument("--lr_step", default=25, type=int)
     p.add_argument("--momentum", default=0.9)
     p.add_argument("--decay", default=0.0005)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
