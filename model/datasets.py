@@ -28,9 +28,10 @@ class SketchDataset(Dataset):
         sketch_path = self.image_dir_path / f"{file_id}_sk.png"
 
         rand_gen = self.rand_gen
-        blend = rand_gen(file_id, -0.75, 0.25)
+        blend = rand_gen(file_id, -0.5, 0.25)
         sketch = cv2.imread(str(sketch_path), cv2.IMREAD_GRAYSCALE)
         blend_img = None
+
         if blend > 0:
             illust = cv2.imread(str(illust_path))
             intensity = rand_gen(file_id, 1., 2.)
@@ -50,7 +51,7 @@ class SketchDataset(Dataset):
         return (sketch_img, tag_class)
 
     def __len__(self):
-        if self.override_len > 0:
+        if self.override_len > 0 and self.data_len > self.override_len:
             return self.override_len
         return self.data_len
 

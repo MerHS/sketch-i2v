@@ -28,7 +28,6 @@ def get_classid_dict():
 
     return tagid_to_classid_dict
 
-# TODO: calculate mean & std
 def get_dataloader(args):
     batch_size = args.batch_size
     data_dir = args.data_dir
@@ -51,9 +50,10 @@ def get_dataloader(args):
 
     print('making train dataset...')
     
+    test_size = args.data_size // 10 if not args.valid else args.data_size
     train = SketchDataset(train_dir, train_id_list, train_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
-    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=args.data_size//10,
+    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=test_size,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     
     print('making dataloader...')

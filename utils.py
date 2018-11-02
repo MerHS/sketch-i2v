@@ -19,6 +19,7 @@ class Trainer(object):
             model.cuda()
         self.optimizer = optimizer
         self.save_dir = save_dir
+        self.log_path = Path(save_dir) / 'loss_log.txt'
         self.save_freq = save_freq
         self.loss_f = nn.BCELoss().cuda()
 
@@ -47,8 +48,11 @@ class Trainer(object):
                 self.optimizer.step()
 
         mode = "train" if is_train else "test"
-
-        print(f">>>[{mode}] loss: {sum(loop_loss):.10f} / top-1 accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}")
+        loss_txt = f">>>[{mode}] loss: {sum(loop_loss):.10f} / top-1 accuracy: {sum(accuracy) / len(data_loader.dataset):.2%}"
+        print(loss_txt)
+        
+        with self.log_path.open('a') as f:
+            f.write(loss_txt)
         
         return loop_loss, accuracy
 
