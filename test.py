@@ -55,15 +55,12 @@ if __name__ == '__main__':
     norm_img = to_normalized_tensor(pil_img)
     norm_img = norm_img.view(-1, 1, 256, 256)
 
-    classifier = nn.Sigmoid()
-
     with torch.no_grad():
-        class_vec = network(norm_img)
-        class_vec = classifier(class_vec).view(-1)
+        class_vec = network(norm_img).view(-1)
 
         props = []
         for i, prop in enumerate(class_vec):
-            if prop > 0.20:
+            if prop >= 0.20:
                 props.append((iv_tag_list[i], prop.item()))
 
         props.sort(key=lambda x:x[1], reverse=True)
