@@ -55,7 +55,7 @@ if __name__ == '__main__':
         sketch_img = get_sketch(img, blend=0.15)
         cv2.imshow("sketch", sketch_img)
     else:
-        from sketchify.sketchify import get_sketch
+        from sketchify.sketchify import get_keras_high_intensity
         sketch_img = get_keras_high_intensity(img, 1.4)
         cv2.imshow("sketch", sketch_img)
     
