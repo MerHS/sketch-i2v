@@ -3,11 +3,12 @@ import pickle
 import torch
 import cv2
 
+from pathlib import Path
 from torch import nn
 from PIL import Image
 from torchvision import transforms
-from sketchify.crop import make_256px_square
-from sketchify.sketchify import get_sketch
+from sketchify.crop import make_square
+from sketchify.sketchify import get_keras_high_intensity, get_sketch
 from model.se_resnet import se_resnext50
 
 to_normalized_tensor = transforms.Compose([
@@ -24,9 +25,12 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument("file_name")
     p.add_argument("--train_file", default="model.pth")
-    p.add_argument("--out", default="out.png")
     p.add_argument("--sketch", action='store_true')
+    p.add_argument("--blend", action='store_true')
     args = p.parse_args()
+
+    if not Path(args.file_name).exists():
+        raise Exception(f"{args.file_name} does not exists.")
 
     with open('taglist/tag_dump.pkl', 'rb') as f:
         pkl = pickle.load(f)
@@ -43,13 +47,18 @@ if __name__ == '__main__':
     network.eval()
 
     img = cv2.imread(args.file_name)
-    img, _, _ = make_256px_square(img, extend=(True, True))
+    img, _, _ = make_square(img, size=512, extend=(True, True))
     cv2.imshow("main", img)
     if args.sketch:
         sketch_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    else:
-        sketch_img = get_sketch(img)
+    elif args.blend:
+        sketch_img = get_sketch(img, blend=0.25)
         cv2.imshow("sketch", sketch_img)
+    else:
+        sketch_img = get_keras_high_intensity(img, 1.4)
+        cv2.imshow("sketch", sketch_img)
+    
+    sketch_img = cv2.resize(sketch_img, (256, 256), interpolation=cv2.INTER_AREA)
 
     pil_img = Image.fromarray(sketch_img)
     norm_img = to_normalized_tensor(pil_img)

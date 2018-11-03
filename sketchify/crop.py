@@ -16,7 +16,7 @@ def crop_square_image(img, aspect): # aspect = width / height
 def is_white(vect):
     return np.all(vect > 250)
 
-def make_256px_square(img, crop=False, extend=None):
+def make_square(img, size=256, crop=False, extend=None):
     """
     extend borders with white pixel or crop image to make it square
 
@@ -38,7 +38,7 @@ def make_256px_square(img, crop=False, extend=None):
             margin_right = (width - height) - margin_left
             img = img[:, margin_left:-margin_right]
 
-        resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
+        resized_img = cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
         return (resized_img, True, None) 
 
     elif extend is None:
@@ -93,7 +93,7 @@ def make_256px_square(img, crop=False, extend=None):
             img = img[:, lx:-ly]
             cropped = True
     
-    resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
+    resized_img = cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
     
     return (resized_img, cropped, extend)
 

@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from keras.models import load_model
 from scipy import ndimage
-from xdog_blend import *
+from .xdog_blend import *
 
 mod = load_model('sketchify/mod.h5')
 
@@ -105,7 +105,7 @@ def batch_keras_enhanced(img_list):
         mat = line_mat[0:int(new_height), 0:int(new_width), :]
         mat = np.amax(mat, 2)
         keras_enhanced = to_keras_enhanced(mat)
-        result_list.append(keras_enhanced)\
+        result_list.append(keras_enhanced)
     
     return result_list
     

@@ -55,13 +55,13 @@ def get_image(file_id):
 
 def make_lineart_square(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    square_img, _, _ = crop.make_256px_square(img)
+    square_img, _, _ = crop.make_square(img)
     return square_img
 
 def make_square_and_sketch(img):
     sketch = sketchify.get_sketch(img)
-    square_img, cropped, extend = crop.make_256px_square(img)
-    square_sketch, _, _ = crop.make_256px_square(sketch, cropped, extend)
+    square_img, cropped, extend = crop.make_square(img)
+    square_sketch, _, _ = crop.make_square(sketch, cropped, extend)
     return (square_img, square_sketch)
 
 
@@ -82,8 +82,8 @@ def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
             sketch_list.extend(sketchify.batch_keras_enhanced(chunk))
     
         for (_, file_id, _), img, sketch in zip(file_batch, crop_list, sketch_list):
-            square_sketch, cropped, extend = crop.make_256px_square(sketch)
-            square_image, _, _ = crop.make_256px_square(img, cropped, extend)
+            square_sketch, cropped, extend = crop.make_square(sketch)
+            square_image, _, _ = crop.make_square(img, cropped, extend)
             
             export_list.append((square_image, str(file_id)))
             export_list.append((square_sketch, str(file_id) + '_sk'))
