@@ -8,7 +8,6 @@ from torch import nn
 from PIL import Image
 from torchvision import transforms
 from sketchify.crop import make_square
-from sketchify.sketchify import get_keras_high_intensity, get_sketch
 from model.se_resnet import se_resnext50
 
 to_normalized_tensor = transforms.Compose([
@@ -52,9 +51,11 @@ if __name__ == '__main__':
     if args.sketch:
         sketch_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     elif args.blend:
-        sketch_img = get_sketch(img, blend=0.25)
+        from sketchify.sketchify import get_sketch
+        sketch_img = get_sketch(img, blend=0.15)
         cv2.imshow("sketch", sketch_img)
     else:
+        from sketchify.sketchify import get_sketch
         sketch_img = get_keras_high_intensity(img, 1.4)
         cv2.imshow("sketch", sketch_img)
     
@@ -69,7 +70,7 @@ if __name__ == '__main__':
 
         props = []
         for i, prop in enumerate(class_vec):
-            if prop >= 0.20:
+            if prop >= 0.2:
                 props.append((iv_tag_list[i], prop.item()))
 
         props.sort(key=lambda x:x[1], reverse=True)
