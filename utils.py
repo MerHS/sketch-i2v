@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import pickle
 
 import torch
 from torch import nn
@@ -83,6 +84,26 @@ class Trainer(object):
             if not model_out_path.exists():
                 model_out_path.mkdir()
             torch.save(state, model_out_path / "model_epoch_{}.pth".format(epoch))
+
+
+def get_classid_dict(tag_dump_path):
+    cv_dict = dict()
+    iv_dict = dict()
+
+    try:
+        f = open(tag_dump_path, 'rb')
+        pkl = pickle.load(f)
+        iv_tag_list = pkl['iv_tag_list']
+        cv_tag_list = pkl['cv_tag_list']
+    except EnvironmentError:
+        raise Exception(f'{tag_dump} does not exist. You should make tag dump file using taglist/tag_indexer.py')
+
+    for i, tag_id in enumerate(iv_tag_list):
+        iv_dict[tag_id] = i
+    for i, tag_id in enumerate(cv_tag_list):
+        cv_dict[tag_id] = i
+
+    return (iv_dict, cv_dict)
 
 
 def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len):

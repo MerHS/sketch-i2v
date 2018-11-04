@@ -11,22 +11,11 @@ from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
 from model.datasets import SketchDataset
-from utils import Trainer, read_tagline_txt
+from utils import *
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
-
-def get_classid_dict():
-    tagid_to_classid_dict = dict()
-    iv_tag_list = None
-    with open('taglist/tag_dump.pkl', 'rb') as f:
-        pkl = pickle.load(f)
-        iv_tag_list = pkl['iv_tag_list']
-    
-    for i, tag_id in enumerate(iv_tag_list):
-        tagid_to_classid_dict[tag_id] = i
-
-    return tagid_to_classid_dict
+TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
 
 def get_dataloader(args):
     batch_size = args.batch_size
@@ -40,20 +29,21 @@ def get_dataloader(args):
     train_dir = data_dir_path / ("train" if not args.valid else "validation")
     test_dir = data_dir_path / "test"
     
-    classid_dict = get_classid_dict()
-    class_len = len(classid_dict.keys())
+    iv_dict, cv_dict = get_classid_dict(args.tag_dump)
+    class_len = len(iv_dict.keys())
 
     print('reading train set tagline')
-    (train_id_list, train_class_list) = read_tagline_txt(train_dir / "tags.txt", train_dir, classid_dict, class_len)
+    (train_id_list, train_iv_class_list) = read_tagline_txt(train_dir / "tags.txt", train_dir, iv_dict, class_len)
     print('reading test set tagline')
-    (test_id_list, test_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, classid_dict, class_len)
+    (test_id_list, test_iv_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, iv_dict, class_len)
 
     print('making train dataset...')
     
     test_size = args.data_size // 10 if not args.valid else args.data_size
-    train = SketchDataset(train_dir, train_id_list, train_class_list, override_len=args.data_size,
+    
+    train = SketchDataset(train_dir, train_id_list, train_iv_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
-    test = SketchDataset(test_dir, test_id_list, test_class_list, override_len=test_size,
+    test = SketchDataset(test_dir, test_id_list, test_iv_class_list, override_len=test_size,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     
     print('making dataloader...')
@@ -63,6 +53,7 @@ def get_dataloader(args):
         test, batch_size=batch_size, shuffle=True, num_workers=args.thread)
     
     return class_len, train_loader, test_loader
+
 
 def main(args):
     print('making dataloader...')
@@ -83,24 +74,6 @@ def main(args):
     print(f'start loop')
     trainer.loop(args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
 
-def calculate(args):
-    _, train_loader, _ = get_dataloader(args)
-    count = 0
-    means = []
-    stds = []
-    iter = 0
-    print('start')
-    for t, c in train_loader:
-        t = t.cuda()
-        batch_list = t.reshape(args.batch_size, -1)
-        means.append(batch_list.mean())
-        stds.append(batch_list.std(1).mean())
-        count += 1
-        if count % 100 == 0:
-            iter += 1
-            print(iter, torch.Tensor(means).mean(), torch.Tensor(stds).mean())
-            if iter == 100:
-                break
 
 if __name__ == '__main__':
     import argparse
@@ -116,8 +89,10 @@ if __name__ == '__main__':
     p.add_argument("--decay", default=0.0001, type=float)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default=OUT_DIRECTORY)
+    p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--data_size", default=0, type=int)
     p.add_argument("--valid", action="store_true")
+    
     args = p.parse_args()
 
     main(args)

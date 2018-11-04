@@ -11,10 +11,11 @@ def real_uniform(id, a, b):
     return uniform(a, b)
 
 class SketchDataset(Dataset):
-    def __init__(self, image_dir_path, file_id_list, tag_class_list, override_len=None, transform=None, is_train=True):
+    def __init__(self, image_dir_path, file_id_list, iv_tag_list, 
+            override_len=None, transform=None, is_train=True, **kwargs):
         self.image_dir_path = image_dir_path
         self.file_id_list = file_id_list
-        self.tag_class_list = tag_class_list
+        self.iv_tag_list = iv_tag_list,
         self.transform = transform
         self.data_len = len(file_id_list)
         self.is_train = is_train
@@ -23,14 +24,27 @@ class SketchDataset(Dataset):
 
     def __getitem__(self, index):
         file_id = self.file_id_list[index]
-        tag_class = self.tag_class_list[index]
+        iv_tag_class = self.iv_tag_list[index]
         illust_path = self.image_dir_path / f"{file_id}.png"
         sketch_path = self.image_dir_path / f"{file_id}_sk.png"
 
+        blend_img = self._sketch_blend(file_id, illust_path, sketch_path)
+        sketch_img = Image.fromarray(blend_img)
+
+        if self.transform is not None:
+            sketch_img = self.transform(sketch_img)
+
+        return (sketch_img, iv_tag_class)
+
+    def __len__(self):
+        if self.override_len > 0 and self.data_len > self.override_len:
+            return self.override_len
+        return self.data_len
+
+    def _sketch_blend(self, file_id, illust_path, sketch_path):
+        blend = self.rand_gen(file_id, -0.5, 0.25)
         rand_gen = self.rand_gen
-        blend = rand_gen(file_id, -0.5, 0.25)
         sketch = cv2.imread(str(sketch_path), cv2.IMREAD_GRAYSCALE)
-        blend_img = None
 
         if blend > 0:
             illust = cv2.imread(str(illust_path))
@@ -43,30 +57,29 @@ class SketchDataset(Dataset):
             intensity = rand_gen(file_id, 1., 1.3)
             blend_img = add_intensity(sketch, intensity)
 
-        sketch_img = Image.fromarray(blend_img)
+        return blend_img
 
-        if self.transform is not None:
-            sketch_img = self.transform(sketch_img)
-
-        return (sketch_img, tag_class)
-
-    def __len__(self):
-        if self.override_len > 0 and self.data_len > self.override_len:
-            return self.override_len
-        return self.data_len
 
 class ColorAndSketchDataset(SketchDataset):
+    def __init__(self, image_dir_path, file_id_list, iv_tag_list, cv_tag_list, **kwargs):
+        super(SketchDataset, self).__init__(image_dir_path, file_id_list, iv_tag_list, **kwargs)
+        self.cv_tag_list = cv_tag_list
+
     def __getitem__(self, index):
         file_id = self.file_id_list[index]
-        tag_class = self.tag_class_list[index]
-        image_path = self.image_dir_path / f"{file_id}.png"
+        iv_tag_class = self.iv_tag_list[index]
+        cv_tag_class = self.cv_tag_list[index]
+        illust_path = self.image_dir_path / f"{file_id}.png"
         sketch_path = self.image_dir_path / f"{file_id}_sk.png"
 
+        blend_img = self._sketch_blend(file_id, illust_path, sketch_path)
+        sketch_img = Image.fromarray(blend_img)
+
         color_img = Image.open(image_path).convert('RGB')
-        sketch_img = Image.open(sketch_path).convert('L') # to [1, H, W]
+        sketch_img = Image.fromarray(blend_img) # to [1, H, W]
 
         if self.transform is not None:
             color_img = self.transform(color_img)
             sketch_img = self.transform(sketch_img)
 
-        return (color_img, sketch_img, tag_class)
+        return (color_img, sketch_img, iv_tag_class, cv_tag_class)
