@@ -15,7 +15,7 @@ class SketchDataset(Dataset):
             override_len=None, transform=None, is_train=True, **kwargs):
         self.image_dir_path = image_dir_path
         self.file_id_list = file_id_list
-        self.iv_tag_list = iv_tag_list,
+        self.iv_tag_list = iv_tag_list
         self.transform = transform
         self.data_len = len(file_id_list)
         self.is_train = is_train

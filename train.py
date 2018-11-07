@@ -32,14 +32,16 @@ def get_dataloader(args):
     iv_dict, cv_dict = get_classid_dict(args.tag_dump)
     class_len = len(iv_dict.keys())
 
+    test_size = args.data_size // 10 if not args.valid else args.data_size
+
     print('reading train set tagline')
-    (train_id_list, train_iv_class_list) = read_tagline_txt(train_dir / "tags.txt", train_dir, iv_dict, class_len)
+    (train_id_list, train_iv_class_list) = read_tagline_txt(
+        train_dir / "tags.txt", train_dir, iv_dict, class_len, args.data_size)
     print('reading test set tagline')
-    (test_id_list, test_iv_class_list) = read_tagline_txt(test_dir / "tags.txt", test_dir, iv_dict, class_len)
+    (test_id_list, test_iv_class_list) = read_tagline_txt(
+        test_dir / "tags.txt", test_dir, iv_dict, class_len, test_size)
 
     print('making train dataset...')
-    
-    test_size = args.data_size // 10 if not args.valid else args.data_size
     
     train = SketchDataset(train_dir, train_id_list, train_iv_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
@@ -65,14 +67,14 @@ def main(args):
                                 device_ids=gpus)
 
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=0.1)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma)
 
     print(f'training params: {args}')
     print('setting trainer...')
     trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
     
     print(f'start loop')
-    trainer.loop(args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
+    trainer.loop(args, args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
 
 
 if __name__ == '__main__':
@@ -83,14 +85,15 @@ if __name__ == '__main__':
     p.add_argument("--epoch", default=100, type=int)
     p.add_argument("--thread", default=8, type=int)
     p.add_argument("--gpu", default=1, type=int)
-    p.add_argument("--lr", default=0.25, type=float)
+    p.add_argument("--lr", default=0.2, type=float)
+    p.add_argument("--lr_gamma", default=0.15, type=float)
     p.add_argument("--lr_step", default=30, type=int)
     p.add_argument("--momentum", default=0.9, type=float)
     p.add_argument("--decay", default=0.0001, type=float)
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--out_dir", default=OUT_DIRECTORY)
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
-    p.add_argument("--data_size", default=0, type=int)
+    p.add_argument("--data_size", default=200000, type=int)
     p.add_argument("--valid", action="store_true")
     
     args = p.parse_args()
