@@ -8,7 +8,6 @@ import numpy as np
 from random import randint
 
 from tqdm import tqdm
-from visdom import Visdom
 
 class Trainer(object):
     cuda = torch.cuda.is_available()
@@ -25,11 +24,11 @@ class Trainer(object):
         self.log_path = Path(save_dir) / 'loss_log.txt'
         self.save_freq = save_freq
         self.loss_f = nn.BCELoss().cuda()
-        self.vis = Visdom(port=8097, server='http://localhost')
+        self.vis = None # Visdom(port=8097, server='http://localhost')
         self.win_loss = None
         self.win_correct = None
 
-        assert self.vis.check_connection(), 'No connection could be formed quickly'
+        # assert self.vis.check_connection(), 'No connection could be formed quickly'
 
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
@@ -82,7 +81,7 @@ class Trainer(object):
 
     def loop(self, args, epochs, train_data, test_data, scheduler=None, do_save=True):
         arg_text = str(args)
-        self.vis.text(arg_text)
+        # self.vis.text(arg_text)
         for ep in range(1, epochs + 1):
             if scheduler is not None:
                 scheduler.step()
@@ -90,30 +89,30 @@ class Trainer(object):
             train_loss, train_correct = self.train(train_data)
             test_loss, test_correct = self.test(test_data)
 
-            if self.win_loss is None:
-                self.win_loss = self.vis.line(
-                    Y=np.column_stack((train_loss, test_loss)),
-                    X=np.column_stack((ep, ep)), 
-                    opts=dict(title='loss', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='loss')
-                )
-                self.win_correct = self.vis.line(
-                    Y=np.column_stack((train_correct, test_correct)),
-                    X=np.column_stack((ep, ep)), 
-                    opts=dict(title='correct', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='correct')
-                )
-            else:
-                self.vis.line(
-                    Y=np.column_stack((train_loss, test_loss)),
-                    X=np.column_stack((ep, ep)), 
-                    win=self.win_loss,
-                    update='append'
-                )
-                self.vis.line(
-                    Y=np.column_stack((train_correct, test_correct)),
-                    X=np.column_stack((ep, ep)), 
-                    win=self.win_correct,
-                    update='append'
-                )
+            # if self.win_loss is None:
+            #     self.win_loss = self.vis.line(
+            #         Y=np.column_stack((train_loss, test_loss)),
+            #         X=np.column_stack((ep, ep)), 
+            #         opts=dict(title='loss', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='loss')
+            #     )
+            #     self.win_correct = self.vis.line(
+            #         Y=np.column_stack((train_correct, test_correct)),
+            #         X=np.column_stack((ep, ep)), 
+            #         opts=dict(title='correct', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='correct')
+            #     )
+            # else:
+            #     self.vis.line(
+            #         Y=np.column_stack((train_loss, test_loss)),
+            #         X=np.column_stack((ep, ep)), 
+            #         win=self.win_loss,
+            #         update='append'
+            #     )
+            #     self.vis.line(
+            #         Y=np.column_stack((train_correct, test_correct)),
+            #         X=np.column_stack((ep, ep)), 
+            #         win=self.win_correct,
+            #         update='append'
+            #     )
 
             if do_save and ep % self.save_freq:
                 self.save(ep)
