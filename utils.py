@@ -82,7 +82,7 @@ class Trainer(object):
     def loop(self, args, epochs, train_data, test_data, scheduler=None, do_save=True):
         arg_text = str(args)
         # self.vis.text(arg_text)
-        for ep in range(1, epochs + 1):
+        for ep in range(args.resume_epoch + 1, epochs + 1):
             if scheduler is not None:
                 scheduler.step()
             print("epochs: {}".format(ep))
@@ -114,7 +114,7 @@ class Trainer(object):
             #         update='append'
             #     )
 
-            if do_save and ep % self.save_freq:
+            if do_save:
                 self.save(ep)
 
     def save(self, epoch, **kwargs):

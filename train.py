@@ -63,16 +63,25 @@ def main(args):
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
-    se_resnet = nn.DataParallel(se_resnext50(num_classes=class_len, input_channels=1),
-                                device_ids=gpus)
 
+    model = se_resnext50(num_classes=class_len, input_channels=1)
+
+    if args.resume_epoch != 0:
+        with open(args.load_path, 'rb') as f:
+            network_weight = torch.load(f)['weight']
+        model_dict = model.state_dict()
+        pretrained_dict = {k[7:]: v for k, v in network_weight.items() if k[7:] in model_dict}
+        model_dict.update(pretrained_dict) 
+        model.load_state_dict(pretrained_dict)
+
+    se_resnet = nn.DataParallel(model, device_ids=gpus)
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma)
 
     print(f'training params: {args}')
     print('setting trainer...')
     trainer = Trainer(se_resnet, optimizer, save_dir=args.out_dir)
-    
+
     print(f'start loop')
     trainer.loop(args, args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
 
@@ -95,6 +104,8 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--data_size", default=200000, type=int)
     p.add_argument("--valid", action="store_true")
+    p.add_argument("--resume_epoch", default=0, type=int)
+    p.add_argument("--load_path", default="result.pth")
     
     args = p.parse_args()
 

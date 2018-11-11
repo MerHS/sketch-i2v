@@ -9,7 +9,7 @@ Train/Tag set: Danbooru2017
 
 ![Sketch example](test_sketch.png)
 
-**Download model.pth** and place it in root folder
+**Download [model.pth](https://github.com/MerHS/sketch-i2v/releases)** and place it in root folder
 
 ```test.py --sketch sketch.png```
 
