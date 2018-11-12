@@ -80,7 +80,7 @@ def main(args):
 
     se_resnet = nn.DataParallel(model, device_ids=gpus)
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma, last_epoch=args.resume_epoch)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma)
 
     print(f'training params: {args}')
     print('setting trainer...')
