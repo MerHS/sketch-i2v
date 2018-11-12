@@ -1,0 +1,11 @@
+black_jacket	5047
+red_jacket	4010
+blue_jacket	3401
+white_jacket	2262
+green_jacket	1978
+brown_jacket	1900
+purple_jacket	1292
+white_apron	2470
+black_vest	1948
+red_vest	1261
+red_cape	1756

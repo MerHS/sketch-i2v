@@ -1,0 +1,9 @@
+black_footwear	22779
+brown_footwear	10792
+white_footwear	7449
+red_footwear	7240
+blue_footwear	4388
+pink_footwear	3527
+purple_footwear	1722
+green_footwear	1348
+grey_footwear	1331
