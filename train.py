@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
+from model.vgg import vgg11_bn
 from model.datasets import SketchDataset
 from utils import *
 
@@ -64,7 +65,10 @@ def main(args):
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
 
-    model = se_resnext50(num_classes=class_len, input_channels=1)
+    if args.vgg:
+        model = vgg11_bn(num_classes=class_len)
+    else:
+        model = se_resnext50(num_classes=class_len, input_channels=1)
 
     if args.resume_epoch != 0:
         with open(args.load_path, 'rb') as f:
@@ -93,6 +97,7 @@ if __name__ == '__main__':
     p.add_argument("--batch_size", default=32, type=int)
     p.add_argument("--epoch", default=100, type=int)
     p.add_argument("--thread", default=8, type=int)
+    p.add_argument("--vgg", action="store_true")
     p.add_argument("--gpu", default=1, type=int)
     p.add_argument("--lr", default=0.2, type=float)
     p.add_argument("--lr_gamma", default=0.15, type=float)
