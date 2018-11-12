@@ -1,0 +1,15 @@
+blue_eyes	585282
+red_eyes	440672
+brown_eyes	336590
+green_eyes	284901
+purple_eyes	224448
+yellow_eyes	189887
+pink_eyes	75716
+black_eyes	65426
+aqua_eyes	63310
+orange_eyes	35252
+grey_eyes	25435
+silver_eyes	4969
+multicolored_eyes	3588
+white_eyes	1441
+alternate_eye_color	3984
