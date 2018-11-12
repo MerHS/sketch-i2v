@@ -1,11 +1,4 @@
 black_panties	33749
 pink_panties	20505
 pink_panties	5943
-blue_panties	2897
-red_panties	1708
-purple_panties	1536
-green_panties	1191
 black_bra	5613
-white_bra	3371
-pink_bra	2403
-blue_bra	1329

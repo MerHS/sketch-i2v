@@ -18,4 +18,3 @@ lavender_hair	15539
 shiny_hair	14732
 shiny_hair	9929
 light_brown_hair	8063
-alternate_hair_color	4080

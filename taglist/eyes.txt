@@ -11,5 +11,3 @@ orange_eyes	35252
 grey_eyes	25435
 silver_eyes	4969
 multicolored_eyes	3588
-white_eyes	1441
-alternate_eye_color	3984

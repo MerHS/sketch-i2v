@@ -1,17 +1,4 @@
 red_neckwear	21611
 black_neckwear	7617
 blue_neckwear	5404
-yellow_neckwear	4090
-green_neckwear	2448
-pink_neckwear	2152
-white_neckwear	1827
-purple_neckwear	1237
-blue_sailor_collar	5363
 red_scarf	5067
-white_scarf	3630
-blue_scarf	2150
-black_choker	2309
-pink_choker	2010
-blue_choker	1827
-orange_choker	1750
-red_choker	1659

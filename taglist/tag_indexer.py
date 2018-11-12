@@ -7,7 +7,7 @@ color_variant_files = ['colorpart.txt', 'background.txt']
 
 essential_color_tag_files = ['eyes.txt', 'hair.txt']
 
-non_essential_color_tag_files = ['body.txt', 'dress.txt', 'etc.txt', 'footwear.txt', 'item.txt', 'leg.txt', 'neckwear.txt', 'skin.txt', 'underwear.txt', 'upbody.txt']
+non_essential_color_tag_files = ['body.txt', 'dress.txt', 'footwear.txt', 'item.txt', 'leg.txt', 'neckwear.txt', 'skin.txt', 'underwear.txt', 'upbody.txt']
 
 tag_list_file = 'tags.txt'
 
@@ -67,7 +67,8 @@ if __name__ == '__main__':
     cv_tag_list = list(cv_tag_list)
     essential_color_tag_list = essential_color_tag_list
     non_essential_color_tag_list = non_essential_color_tag_list
-
+    ess_len = sum(map(len, essential_color_tag_list))
+    non_len = sum(map(len, non_essential_color_tag_list))
 
     result = {
         'iv_tag_list': iv_tag_list,
@@ -80,4 +81,5 @@ if __name__ == '__main__':
     with open('tag_dump.pkl', 'wb') as fw:
         pickle.dump(result, fw)
 
+    print(f'essential len: {ess_len} / non-essential len: {non_len}')
     print(f'invariant len: {len(iv_tag_list)} / cv len: {len(cv_tag_list)} / sum: {len(iv_tag_list + cv_tag_list)}')
