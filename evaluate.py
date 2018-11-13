@@ -16,6 +16,7 @@ from utils import *
 from tqdm import tqdm
 
 from train import get_dataloader
+from test import load_weight
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
@@ -33,15 +34,12 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--data_size", default=0, type=int)
     p.add_argument("--color", action="store_true")
-    p.add_argument("--load_path", default="result.pth")
 
-    # must set it true
+    # must set it True and False
     p.add_argument("--valid", default=True)
+    p.add_argument("--calc", default=False)
 
     args = p.parse_args()
-
-    if not Path(args.file_name).exists():
-        raise Exception(f"{args.file_name} does not exists.")
 
     with open(args.tag_dump, 'rb') as f:
         pkl = pickle.load(f)
@@ -62,25 +60,47 @@ if __name__ == '__main__':
         network = vgg11_bn(num_classes=class_len, in_channels=1)
     else:
         network = se_resnext50(num_classes=class_len, input_channels=1)
+    
+    load_weight(network, network_weight)
+
+    if args.gpu > 0:
+        network = network.cuda()
 
     network.eval()
     with torch.no_grad():
-        class_count = torch.zeros(class_len).float()
-        score = torch.zeros(class_len).int()
+        class_count = torch.zeros(class_len).long()
+        score = torch.zeros(class_len).long()
+        total_count = 0
         for img_tensor, data_class in tqdm(valid_loader, ncols=80):
             if args.gpu > 0:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
 
             output = network(img_tensor)
             
+            if args.gpu > 0:
+                output = output.cpu()
+                data_class = data_class.cpu()
             estim_class = output >= 0.2
-            score_tensor = estim_class[data_class.byte()].int().sum(0)
+            data_class = data_class.long()
+           
+            score_tensor = (data_class * estim_class.long()).long().sum(0)
             score += score_tensor
-
-            total_len += class_count
-
-        accuracy = score.float() / class_count * 100
+            class_count += data_class.sum(0)
+            total_count += data_class.shape[0]
         
+        accuracy = score.float() / class_count.float() * 100
+        
+        result = []
+        for i in range(class_len):
+            tag = tag_dict[tag_list[i]]
+            scr = score[i]
+            count = class_count[i]
+            acc = accuracy[i]
+            result.append((count, acc, scr, tag))
+        result.sort(reverse=True)
+
         with open('evaluate_result.txt', 'w') as f:
-            for i in range(class_len):
-                f.write(f'{tag_dict[tag_list[i]]:30s} {score[i]:6d} {total_len[i]:6d} {accuracy[i]:6.4f}\n')
+            for count, acc, score, tag in result:
+                f.write(f'{tag:25s} {score:6d} {count:6d} {acc:8.4f}\n')
+        print(f'finished! total {total_count} imgs / check evalute_result.txt')
+

@@ -26,6 +26,7 @@ if __name__ == '__main__':
     p.add_argument("--train_file", default="model.pth")
     p.add_argument("--sketch", action='store_true')
     p.add_argument("--blend", action='store_true')
+    p.add_argument("--show", action='store_true')
     args = p.parse_args()
 
     if not Path(args.file_name).exists():
@@ -47,17 +48,21 @@ if __name__ == '__main__':
 
     img = cv2.imread(args.file_name)
     img, _, _ = make_square(img, size=512, extend=(True, True))
-    cv2.imshow("main", img)
+    if args.show:
+        cv2.imshow("main", img)
+    
     if args.sketch:
         sketch_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     elif args.blend:
         from sketchify.sketchify import get_sketch
         sketch_img = get_sketch(img, blend=0.15)
-        cv2.imshow("sketch", sketch_img)
+        if args.show:
+            cv2.imshow("sketch", sketch_img)
     else:
         from sketchify.sketchify import get_keras_high_intensity
         sketch_img = get_keras_high_intensity(img, 1.4)
-        cv2.imshow("sketch", sketch_img)
+        if args.show:
+            cv2.imshow("sketch", sketch_img)
     
     sketch_img = cv2.resize(sketch_img, (256, 256), interpolation=cv2.INTER_AREA)
 
@@ -76,5 +81,5 @@ if __name__ == '__main__':
         props.sort(key=lambda x:x[1], reverse=True)
         for tag_key, prop in props:
             print(tag_dict[tag_key], prop)
-
-        cv2.waitKey(0)
+        if args.show:
+            cv2.waitKey(0)
