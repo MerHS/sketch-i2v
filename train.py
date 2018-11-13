@@ -31,7 +31,7 @@ def get_dataloader(args):
     if args.color:
         tag_dict = cv_dict
         class_len = len(cv_dict.keys())
-        to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
+        to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.7153, 0.6640, 0.6552], std=[0.2488, 0.2589, 0.2530])]
         DataSet = ColorDataset
     else:
         tag_dict = iv_dict
@@ -51,8 +51,12 @@ def get_dataloader(args):
 
     print('making train dataset...')
     
+    if not args.calc:
+        train_transform = transforms.Compose(data_augmentation + to_normalized_tensor)
+    else:
+        train_transform = transforms.Compose([transforms.ToTensor(), ])
     train = DataSet(train_dir, train_id_list, train_class_list, override_len=args.data_size,
-        transform = transforms.Compose(data_augmentation + to_normalized_tensor))
+        transform = train_transform)
     test = DataSet(test_dir, test_id_list, test_class_list, override_len=test_size,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     
@@ -103,7 +107,7 @@ def calc_meanstd(args):
     mean = 0.
     std = 0.
     nb_samples = 0.
-    for data in tqdm(train_loader, ncols=80):
+    for data, _ in tqdm(train_loader, ncols=80):
         batch_samples = data.size(0)
         data = data.view(batch_samples, data.size(1), -1)
         mean += data.mean(2).sum(0)
