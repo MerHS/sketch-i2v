@@ -20,7 +20,7 @@ model_urls = {
 
 
 class VGG_NIN(nn.Module):
-    def __init__(self, features, num_classes=1000, init_weights=True):
+    def __init__(self, features, num_classes=1000, init_weights=True, **kwargs):
         super(VGG_NIN, self).__init__()
         self.features = features
         self.classifier = nn.Sequential(
@@ -58,7 +58,7 @@ class VGG_NIN(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-def make_layers(cfg, batch_norm=False, in_channels=1):
+def make_layers(cfg, batch_norm=False, in_channels=1, **kwargs):
     layers = []
     for v in cfg:
         if v == 'M':
