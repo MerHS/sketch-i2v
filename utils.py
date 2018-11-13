@@ -146,7 +146,7 @@ def get_classid_dict(tag_dump_path):
     return (iv_dict, cv_dict)
 
 
-def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_size=0):
+def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_size=0, read_all=False):
     # tag one-hot encoding + 파일 있는지 확인
     if not tag_txt_path.exists():
         raise Exception(f'tag list text file "{tag_txt_path}" does not exist.')
@@ -167,7 +167,7 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_s
             if not (img_dir_path / f'{file_id}.png').exists():
                 continue
 
-            if len(tag_list) < 8:
+            if not read_all and len(tag_list) < 8:
                 continue
             
             tag_class = torch.zeros(class_len, dtype=torch.float)

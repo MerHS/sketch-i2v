@@ -19,7 +19,7 @@ DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data
 OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
 TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
 
-def get_dataloader(args):
+def get_dataloader(args, read_all=False):
     batch_size = args.batch_size
     data_dir = args.data_dir
     data_dir_path = Path(data_dir)
@@ -44,7 +44,7 @@ def get_dataloader(args):
 
     print('reading train set tagline')
     (train_id_list, train_class_list) = read_tagline_txt(
-        train_dir / "tags.txt", train_dir, tag_dict, class_len, args.data_size)
+        train_dir / "tags.txt", train_dir, tag_dict, class_len, args.data_size, read_all=read_all)
     print('reading test set tagline')
     (test_id_list, test_class_list) = read_tagline_txt(
         test_dir / "tags.txt", test_dir, tag_dict, class_len, test_size)

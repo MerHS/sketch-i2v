@@ -34,12 +34,14 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--data_size", default=0, type=int)
     p.add_argument("--color", action="store_true")
+    p.add_argument("--metric", default=0.2, type=float)
 
     # must set it True and False
-    p.add_argument("--valid", default=True)
-    p.add_argument("--calc", default=False)
+    p.add_argument("--valid", type=bool, default=True)
+    p.add_argument("--calc", type=bool, default=False)
 
     args = p.parse_args()
+    print(args)
 
     with open(args.tag_dump, 'rb') as f:
         pkl = pickle.load(f)
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     in_channels = 3 if args.color else 1
     tag_list = cv_tag_list if args.color else iv_tag_list
 
-    class_len, valid_loader, _ = get_dataloader(args)
+    class_len, valid_loader, _ = get_dataloader(args, read_all=True)
 
     if args.vgg:
         network = vgg11_bn(num_classes=class_len, in_channels=1)
@@ -80,7 +82,7 @@ if __name__ == '__main__':
             if args.gpu > 0:
                 output = output.cpu()
                 data_class = data_class.cpu()
-            estim_class = output >= 0.2
+            estim_class = output >= args.metric
             data_class = data_class.long()
            
             score_tensor = (data_class * estim_class.long()).long().sum(0)
@@ -96,11 +98,12 @@ if __name__ == '__main__':
             scr = score[i]
             count = class_count[i]
             acc = accuracy[i]
-            result.append((count, acc, scr, tag))
+            result.append((acc, count, scr, tag))
         result.sort(reverse=True)
 
         with open('evaluate_result.txt', 'w') as f:
-            for count, acc, score, tag in result:
+            f.write(f'total {total_count} imgs / metric: {args.metric}\n')
+            for acc, count, score, tag in result:
                 f.write(f'{tag:25s} {score:6d} {count:6d} {acc:8.4f}\n')
         print(f'finished! total {total_count} imgs / check evalute_result.txt')
 
