@@ -136,7 +136,7 @@ def get_classid_dict(tag_dump_path):
         iv_tag_list = pkl['iv_tag_list']
         cv_tag_list = pkl['cv_tag_list']
     except EnvironmentError:
-        raise Exception(f'{tag_dump} does not exist. You should make tag dump file using taglist/tag_indexer.py')
+        raise Exception(f'{tag_dump_path} does not exist. You should make tag dump file using taglist/tag_indexer.py')
 
     for i, tag_id in enumerate(iv_tag_list):
         iv_dict[tag_id] = i

@@ -58,9 +58,8 @@ class VGG_NIN(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-def make_layers(cfg, batch_norm=False):
+def make_layers(cfg, batch_norm=False, in_channels=1):
     layers = []
-    in_channels = 1
     for v in cfg:
         if v == 'M':
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
@@ -84,6 +83,6 @@ def vgg11_bn(**kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = VGG_NIN(make_layers(cfg['A'], batch_norm=True), **kwargs)
+    model = VGG_NIN(make_layers(cfg['A'], batch_norm=True, **kwargs), **kwargs)
     return model
 

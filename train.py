@@ -11,8 +11,9 @@ from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
 from model.vgg import vgg11_bn
-from model.datasets import SketchDataset
+from model.datasets import SketchDataset, ColorDataset
 from utils import *
+from tqdm import tqdm
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
@@ -21,32 +22,38 @@ TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tagli
 def get_dataloader(args):
     batch_size = args.batch_size
     data_dir = args.data_dir
-
-    to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
-    data_augmentation = [transforms.RandomHorizontalFlip(), ]
-
     data_dir_path = Path(data_dir)
     
     train_dir = data_dir_path / ("train" if not args.valid else "validation")
     test_dir = data_dir_path / "test"
     
     iv_dict, cv_dict = get_classid_dict(args.tag_dump)
-    class_len = len(iv_dict.keys())
+    if args.color:
+        tag_dict = cv_dict
+        class_len = len(cv_dict.keys())
+        to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
+        DataSet = ColorDataset
+    else:
+        tag_dict = iv_dict
+        class_len = len(iv_dict.keys())
+        to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
+        DataSet = SketchDataset
+    data_augmentation = [transforms.RandomHorizontalFlip(), ]
 
     test_size = args.data_size // 10 if not args.valid else args.data_size
 
     print('reading train set tagline')
-    (train_id_list, train_iv_class_list) = read_tagline_txt(
-        train_dir / "tags.txt", train_dir, iv_dict, class_len, args.data_size)
+    (train_id_list, train_class_list) = read_tagline_txt(
+        train_dir / "tags.txt", train_dir, tag_dict, class_len, args.data_size)
     print('reading test set tagline')
-    (test_id_list, test_iv_class_list) = read_tagline_txt(
-        test_dir / "tags.txt", test_dir, iv_dict, class_len, test_size)
+    (test_id_list, test_class_list) = read_tagline_txt(
+        test_dir / "tags.txt", test_dir, tag_dict, class_len, test_size)
 
     print('making train dataset...')
     
-    train = SketchDataset(train_dir, train_id_list, train_iv_class_list, override_len=args.data_size,
+    train = DataSet(train_dir, train_id_list, train_class_list, override_len=args.data_size,
         transform = transforms.Compose(data_augmentation + to_normalized_tensor))
-    test = SketchDataset(test_dir, test_id_list, test_iv_class_list, override_len=test_size,
+    test = DataSet(test_dir, test_id_list, test_class_list, override_len=test_size,
         transform = transforms.Compose(to_normalized_tensor), is_train=False)
     
     print('making dataloader...')
@@ -65,10 +72,11 @@ def main(args):
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
 
+    in_channels = 3 if args.color else 1
     if args.vgg:
-        model = vgg11_bn(num_classes=class_len)
+        model = vgg11_bn(num_classes=class_len, in_channels=in_channels)
     else:
-        model = se_resnext50(num_classes=class_len, input_channels=1)
+        model = se_resnext50(num_classes=class_len, input_channels=in_channels)
 
     if args.resume_epoch != 0:
         with open(args.load_path, 'rb') as f:
@@ -90,6 +98,23 @@ def main(args):
     trainer.loop(args, args.epoch, train_loader, test_loader, scheduler, do_save=(not args.valid))
 
 
+def calc_meanstd(args):
+    class_len, train_loader, test_loader = get_dataloader(args)
+    mean = 0.
+    std = 0.
+    nb_samples = 0.
+    for data in tqdm(train_loader, ncols=80):
+        batch_samples = data.size(0)
+        data = data.view(batch_samples, data.size(1), -1)
+        mean += data.mean(2).sum(0)
+        std += data.std(2).sum(0)
+        nb_samples += batch_samples
+
+    mean /= nb_samples
+    std /= nb_samples
+    print(f"mean: {mean} / std: {std}")
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -109,10 +134,14 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--data_size", default=200000, type=int)
     p.add_argument("--valid", action="store_true")
+    p.add_argument("--color", action="store_true")
     p.add_argument("--resume_epoch", default=0, type=int)
     p.add_argument("--load_path", default="result.pth")
-    
+    p.add_argument("--calc", action="store_true")
+
     args = p.parse_args()
 
-    main(args)
-    # calculate(args)
+    if args.calc:
+        calc_meanstd(args)
+    else:
+        main(args)
