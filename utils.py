@@ -61,7 +61,7 @@ class Trainer(object):
         print(loss_txt)
         
         with self.log_path.open('a') as f:
-            f.write(loss_txt)
+            f.write(loss_txt + '\n')
         
         return loss_value, accuracy_value
 
