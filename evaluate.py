@@ -31,7 +31,7 @@ if __name__ == '__main__':
     p.add_argument("--train_file", default="model.pth")
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
-    p.add_argument("--data_size", default=200000, type=int)
+    p.add_argument("--data_size", default=0, type=int)
     p.add_argument("--color", action="store_true")
     p.add_argument("--load_path", default="result.pth")
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     in_channels = 3 if args.color else 1
     tag_list = cv_tag_list if args.color else iv_tag_list
 
-    class_len, train_loader, test_loader = get_dataloader(args)
+    class_len, valid_loader, _ = get_dataloader(args)
 
     if args.vgg:
         network = vgg11_bn(num_classes=class_len, in_channels=1)
@@ -67,8 +67,8 @@ if __name__ == '__main__':
     with torch.no_grad():
         class_count = torch.zeros(class_len).float()
         score = torch.zeros(class_len).int()
-        for img_tensor, data_class in tqdm(data_loader, ncols=80):
-            if self.cuda:
+        for img_tensor, data_class in tqdm(valid_loader, ncols=80):
+            if args.gpu > 0:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
 
             output = network(img_tensor)

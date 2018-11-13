@@ -192,4 +192,5 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_s
             if data_limited and count > data_size:
                 break
 
+    print(f'file len {len(file_id_list)} class list len {len(tag_class_list)} class_len {class_len}')
     return (file_id_list, tag_class_list)
