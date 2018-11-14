@@ -76,15 +76,15 @@ if __name__ == '__main__':
         for img_tensor, data_class in tqdm(valid_loader, ncols=80):
             if args.gpu > 0:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
-
             output = network(img_tensor)
+            output = output.view(output.shape[0], -1)
             
             if args.gpu > 0:
                 output = output.cpu()
                 data_class = data_class.cpu()
             estim_class = output >= args.metric
             data_class = data_class.long()
-           
+            
             score_tensor = (data_class * estim_class.long()).long().sum(0)
             score += score_tensor
             class_count += data_class.sum(0)
