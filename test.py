@@ -26,6 +26,7 @@ if __name__ == '__main__':
     p.add_argument("file_name")
     p.add_argument("--train_file", default="model.pth")
     p.add_argument("--sketch", action='store_true')
+    p.add_argument("--color", action='store_true')
     p.add_argument("--blend", action='store_true')
     p.add_argument("--show", action='store_true')
     p.add_argument("--vgg", action='store_true')
@@ -37,16 +38,18 @@ if __name__ == '__main__':
     with open('taglist/tag_dump.pkl', 'rb') as f:
         pkl = pickle.load(f)
         iv_tag_list = pkl['iv_tag_list']
+        cv_tag_list = pkl['cv_tag_list']
         tag_dict = pkl['tag_dict']
         tag_dict = {v: k for k, v in tag_dict.items()}
 
     with open(args.train_file, 'rb') as f:
         network_weight = torch.load(f)['weight']
 
+    in_channels = 3 if args.color else 1
     if args.vgg:
-        network = vgg11_bn(num_classes=len(iv_tag_list), in_channels=1)
+        network = vgg11_bn(num_classes=len(iv_tag_list), in_channels=in_channels)
     else:
-        network = se_resnext50(num_classes=len(iv_tag_list), input_channels=1)
+        network = se_resnext50(num_classes=len(iv_tag_list), input_channels=in_channels)
     load_weight(network, network_weight)
 
     network.eval()
@@ -56,7 +59,9 @@ if __name__ == '__main__':
     if args.show:
         cv2.imshow("main", img)
     
-    if args.sketch:
+    if args.color:
+        sketch_img = img
+    elif args.sketch:
         sketch_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     elif args.blend:
         from sketchify.sketchify import get_sketch
@@ -73,7 +78,7 @@ if __name__ == '__main__':
 
     pil_img = Image.fromarray(sketch_img)
     norm_img = to_normalized_tensor(pil_img)
-    norm_img = norm_img.view(-1, 1, 256, 256)
+    norm_img = norm_img.view(-1, in_channels, 256, 256)
 
     with torch.no_grad():
         class_vec = network(norm_img).view(-1)
