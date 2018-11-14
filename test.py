@@ -30,6 +30,7 @@ if __name__ == '__main__':
     p.add_argument("--blend", action='store_true')
     p.add_argument("--show", action='store_true')
     p.add_argument("--vgg", action='store_true')
+    p.add_argument("--metric", type=float, default=0.2)
     args = p.parse_args()
 
     if not Path(args.file_name).exists():
@@ -86,7 +87,7 @@ if __name__ == '__main__':
 
         props = []
         for i, prop in enumerate(class_vec):
-            if prop >= 0.2:
+            if prop >= args.metric:
                 props.append((tag_list[i], prop.item()))
 
         props.sort(key=lambda x:x[1], reverse=True)
