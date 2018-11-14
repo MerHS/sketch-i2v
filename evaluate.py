@@ -52,7 +52,6 @@ if __name__ == '__main__':
 
     with open(args.train_file, 'rb') as f:
         network_weight = torch.load(f)['weight']
-
     in_channels = 3 if args.color else 1
     tag_list = cv_tag_list if args.color else iv_tag_list
 
@@ -78,7 +77,6 @@ if __name__ == '__main__':
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
             output = network(img_tensor)
             output = output.view(output.shape[0], -1)
-            
             if args.gpu > 0:
                 output = output.cpu()
                 data_class = data_class.cpu()

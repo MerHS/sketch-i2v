@@ -9,6 +9,7 @@ from PIL import Image
 from torchvision import transforms
 from sketchify.crop import make_square
 from model.se_resnet import se_resnext50
+from model.vgg import vgg11_bn
 
 to_normalized_tensor = transforms.Compose([
     transforms.ToTensor(), 
@@ -27,6 +28,7 @@ if __name__ == '__main__':
     p.add_argument("--sketch", action='store_true')
     p.add_argument("--blend", action='store_true')
     p.add_argument("--show", action='store_true')
+    p.add_argument("--vgg", action='store_true')
     args = p.parse_args()
 
     if not Path(args.file_name).exists():
@@ -41,7 +43,10 @@ if __name__ == '__main__':
     with open(args.train_file, 'rb') as f:
         network_weight = torch.load(f)['weight']
 
-    network = se_resnext50(num_classes=len(iv_tag_list), input_channels=1)
+    if args.vgg:
+        network = vgg11_bn(num_classes=len(iv_tag_list), in_channels=1)
+    else:
+        network = se_resnext50(num_classes=len(iv_tag_list), input_channels=1)
     load_weight(network, network_weight)
 
     network.eval()
