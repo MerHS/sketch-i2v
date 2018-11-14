@@ -13,6 +13,7 @@ from model.se_resnet import se_resnext50
 from model.vgg import vgg11_bn
 from model.datasets import SketchDataset, ColorDataset
 from utils import *
+from test import load_weight
 from tqdm import tqdm
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
@@ -84,15 +85,22 @@ def main(args):
 
     if args.resume_epoch != 0:
         with open(args.load_path, 'rb') as f:
-            network_weight = torch.load(f)['weight']
-        model_dict = model.state_dict()
-        pretrained_dict = {k[7:]: v for k, v in network_weight.items() if k[7:] in model_dict}
-        model_dict.update(pretrained_dict) 
-        model.load_state_dict(pretrained_dict)
+            loaded = torch.load(f)
+            network_weight = loaded['weight']
+            if 'optimizer' in loaded:
+                opt_weight = loaded['optimizer']
+            else:
+                opt_weight = None
+        load_weight(model, network_weight)
+        last_epoch = args.resume_epoch
+    else:
+        last_epoch = -1
 
     se_resnet = nn.DataParallel(model, device_ids=gpus)
     optimizer = optim.SGD(params=se_resnet.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma)
+    if opt_weight:
+        load_weight(optimizer, opt_weight)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma, last_epoch=last_epoch)
 
     print(f'training params: {args}')
     print('setting trainer...')
