@@ -46,10 +46,11 @@ if __name__ == '__main__':
         network_weight = torch.load(f)['weight']
 
     in_channels = 3 if args.color else 1
+    tag_list = cv_tag_list if args.color else iv_tag_list
     if args.vgg:
-        network = vgg11_bn(num_classes=len(iv_tag_list), in_channels=in_channels)
+        network = vgg11_bn(num_classes=len(tag_list), in_channels=in_channels)
     else:
-        network = se_resnext50(num_classes=len(iv_tag_list), input_channels=in_channels)
+        network = se_resnext50(num_classes=len(tag_list), input_channels=in_channels)
     load_weight(network, network_weight)
 
     network.eval()
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         props = []
         for i, prop in enumerate(class_vec):
             if prop >= 0.2:
-                props.append((iv_tag_list[i], prop.item()))
+                props.append((tag_list[i], prop.item()))
 
         props.sort(key=lambda x:x[1], reverse=True)
         for tag_key, prop in props:
