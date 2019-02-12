@@ -1,0 +1,15 @@
+3389 blush 23807
+10959 blue_eyes 16102
+8526 red_eyes 13327
+16578 brown_eyes 9055
+10960 green_eyes 7983
+15654 purple_eyes 6521
+89189 yellow_eyes 5769
+16750 pink_eyes 2365
+13199 black_eyes 2238
+89368 aqua_eyes 2192
+95405 orange_eyes 1359
+89228 grey_eyes 902
+390186 silver_eyes 266
+1373022 red-framed_eyewear 462
+1373029 black-framed_eyewear 242

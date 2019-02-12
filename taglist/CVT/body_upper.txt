@@ -1,0 +1,17 @@
+376766 white_shirt 3545
+524961 black_shirt 556
+390594 red_shirt 379
+397327 blue_shirt 334
+514515 pink_shirt 200
+474820 black_gloves 2548
+486611 brown_gloves 313
+435433 red_gloves 277
+1401711 red_neckwear 1459
+1441865 black_neckwear 626
+1403814 blue_neckwear 429
+1402579 green_neckwear 191
+1441874 yellow_neckwear 333
+547860 black_jacket 360
+471601 black_bra 322
+463127 white_bra 154
+456585 pink_bra 107
