@@ -2,6 +2,7 @@ import argparse
 import cv2
 import numpy as np
 from pathlib import Path
+import sketchify.sketchify as sk
 from sketchify.crop import make_square
 from sketchify.xdog_blend import get_xdog_image, add_intensity
 from skimage import morphology
@@ -45,37 +46,44 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument("file_name")
     p.add_argument("--train_file", default="model.pth")
-    p.add_argument("--sketch", action='store_true')
-    p.add_argument("--blend", action='store_true')
+
     args = p.parse_args()
 
     if not Path(args.file_name).exists():
         raise Exception(f"{args.file_name} does not exists.")
 
-    img = cv2.imread(args.file_name)
-    ximg, _, _ = make_square(img, size=512, extend=(True, True))
-    cv2.imshow("main", ximg)
-    img = add_intensity(ximg, 1.9)
-    cv2.imshow("intensity", img)
-    #sketch = get_keras_high_intensity(img, 2)
-    xdog = get_xdog_image(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 0.45, 2.2, 0.99)
-    # lab = valsat(img, 2, 200)
-    #bent = cv2.addWeighted(sketch, 0.1, lab, 0.9, 0)
-    #cv2.imshow("sketch", sketch)
-    cv2.imshow("xdog", xdog)
-    mask = xdog < 10
-    mask = morphology.remove_small_objects(mask, min_size=4, connectivity=2)
-    cleaned = np.copy(xdog)
-    cleaned[mask==False] = 255
-    cv2.imshow("cluster", cleaned)
-    cv2.imwrite('cleaned.png', cleaned)
-    #cv2.imshow("add", bent)
-    # bil3 = cv2.bilateralFilter(img, 9, 80, 120)
-    # bil1 = cv2.bilateralFilter(quant(bil3, 12), 9, 80, 120)
-    
-    # cv2.imshow("bil1", bil3)
-    # cv2.imshow("bil2", quant(bil3, 12))
-    # cv2.imshow("bil3", bil1)
-    # cv2.imshow("bil4", quant(bil1, 12))
+    ximg = cv2.imread(args.file_name)
+    # ximg = cv2.resize(ximg, None, fx=0.15, fy=0.15)
+    # cv2.imshow("color", ximg)
+    gray = cv2.cvtColor(ximg, cv2.COLOR_BGR2GRAY)
+    #cv2.imshow("gray", gray)
+    sketch = sk.get_keras_enhanced(ximg)
 
-    cv2.waitKey(0)
+    # cv2.imshow("sketch", sketch)
+    sk_high = add_intensity(sketch, 1.6)
+    #cv2.imshow("intensity", sk_high)
+
+    xdog = get_xdog_image(gray, 0.35, 2.2, 0.95)
+    # cv2.imshow("xdog", xdog)
+
+    xdog_blurred = cv2.GaussianBlur(xdog, (5, 5), 1)
+    xdog_residual_blur = cv2.addWeighted(xdog_blurred, 0.75, xdog, 0.25, 0)
+    #cv2.imshow("xdog_res_blur", xdog_residual_blur)
+
+    blend_sketch = np.copy(sk_high)
+    print(xdog_residual_blur.shape, blend_sketch.shape)
+    if blend_sketch.shape != xdog_residual_blur.shape:
+        blend_sketch = cv2.resize(blend_sketch, xdog_residual_blur.shape, interpolation=cv2.INTER_AREA)
+    print(xdog_residual_blur.shape, blend_sketch.shape)
+    blended_image = cv2.addWeighted(xdog_residual_blur, 0.25, blend_sketch, 0.75, 0)
+
+    #cv2.imshow("blend", blended_image)
+    final_image = sk.add_intensity(blended_image, 0.8)
+    # cv2.imshow("final", blended_image)
+
+    cv2.imwrite('color.png', ximg)
+    cv2.imwrite('sketch.png', sketch)
+    cv2.imwrite('xdog.png', xdog)
+    cv2.imwrite('final.png', blended_image)
+
+    #cv2.waitKey(0)

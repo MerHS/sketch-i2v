@@ -11,10 +11,11 @@ from torchvision import datasets, transforms
 
 from model.se_resnet import se_resnext50
 from model.vgg import vgg11_bn
-from model.datasets import SketchDataset, ColorDataset
+from model.datasets import SketchDataset, ColorDataset, SketchRawXDogDataset
 from utils import *
 from test import load_weight
 from tqdm import tqdm
+from PIL import Image
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
@@ -29,6 +30,7 @@ def get_dataloader(args, read_all=False):
     test_dir = data_dir_path / "test"
     
     iv_dict, cv_dict = get_classid_dict(args.tag_dump)
+
     if args.color:
         tag_dict = cv_dict
         class_len = len(cv_dict.keys())
@@ -39,7 +41,19 @@ def get_dataloader(args, read_all=False):
         class_len = len(iv_dict.keys())
         to_normalized_tensor = [transforms.ToTensor(), transforms.Normalize(mean=[0.9184], std=[0.1477])]
         DataSet = SketchDataset
+    
     data_augmentation = [transforms.RandomHorizontalFlip(), ]
+
+    if args.raw:
+        data_augmentation.append(transforms.RandomCrop((720, 720)))
+        to_normalized_tensor = [
+            transforms.Resize((256, 256), interpolation=Image.LANCZOS),
+            transforms.ToTensor(), 
+            transforms.Normalize(mean=[0.9274], std=[0.1638])
+            ]
+        DataSet = SketchRawXDogDataset
+    
+    
 
     test_size = args.data_size // 10 if not args.valid else args.data_size
 
@@ -52,14 +66,16 @@ def get_dataloader(args, read_all=False):
 
     print('making train dataset...')
     
-    if not args.calc:
-        train_transform = transforms.Compose(data_augmentation + to_normalized_tensor)
+    if args.calc:
+        train_transform = transforms.Compose([transforms.Resize((256, 256), interpolation=Image.LANCZOS), transforms.ToTensor(), ])
     else:
-        train_transform = transforms.Compose([transforms.ToTensor(), ])
+        train_transform = transforms.Compose(data_augmentation + to_normalized_tensor)
+
     train = DataSet(train_dir, train_id_list, train_class_list, override_len=args.data_size,
         transform = train_transform)
     test = DataSet(test_dir, test_id_list, test_class_list, override_len=test_size,
-        transform = transforms.Compose(to_normalized_tensor), is_train=False)
+        transform = transforms.Compose(to_normalized_tensor), 
+        is_train=False)
     
     print('making dataloader...')
     train_loader = DataLoader(
@@ -76,6 +92,7 @@ def main(args):
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
+    opt_weight = None
 
     in_channels = 3 if args.color else 1
     if args.vgg:
@@ -150,6 +167,7 @@ if __name__ == '__main__':
     p.add_argument("--resume_epoch", default=0, type=int)
     p.add_argument("--load_path", default="result.pth")
     p.add_argument("--calc", action="store_true")
+    p.add_argument("--raw", action="store_true")
 
     args = p.parse_args()
 

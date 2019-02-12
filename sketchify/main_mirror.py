@@ -7,10 +7,11 @@ import cv2
 import numpy as np
 import sketchify
 import crop
+import traceback
 
 # directory path of 512px or original folder of danbooru2017 dataset
 IMAGE_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\512px' 
-OUTPUT_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\256px'
+OUTPUT_DIRECTORY = 'F:\\IMG\\danbooru\\danbooru2017\\new_dataset'
 
 TAG_MONOCHROME = 1681
 TAG_GREYSCALE = 513837
@@ -35,7 +36,8 @@ if not image_dir_path.exists():
     raise Exception('Directory of image "'+ IMAGE_DIRECTORY + '" does not exists.')
 
 output_dir_path.mkdir(exist_ok=True)
-
+(output_dir_path / 'rgb').mkdir(exist_ok=True)
+(output_dir_path / 'sketch').mkdir(exist_ok=True)
 
 def metadata_to_tagline(metadata):
     id_list = map(lambda tag: tag['id'], metadata['tags'])
@@ -60,7 +62,7 @@ def get_image(file_id):
 
 def make_lineart_square(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    square_img, _, _ = crop.make_square(img)
+    square_img = crop.make_square_by_mirror(img)
     return square_img
 
 def make_square_and_sketch(img):
@@ -72,12 +74,13 @@ def make_square_and_sketch(img):
 
 def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
     export_list = []
+    export_sketch_list=[]
     crop_list = []
     line_list = []
 
     if len(file_batch) != 0:
-        for img, _, aspect in file_batch:
-            crop_image = crop.crop_square_image(img, aspect)
+        for img, _, _ in file_batch:
+            crop_image = crop.trim_box(img)
             crop_list.append(crop_image)
 
         crop_chunk = [crop_list[i:i + batch_input_size] for i in range(0, len(crop_list), batch_input_size)]
@@ -87,38 +90,80 @@ def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
             sketch_list.extend(sketchify.batch_keras_enhanced(chunk))
     
         for (_, file_id, _), img, sketch in zip(file_batch, crop_list, sketch_list):
-            square_sketch, cropped, extend = crop.make_square(sketch)
-            square_image, _, _ = crop.make_square(img, cropped, extend)
+            square_sketch = crop.make_square_by_mirror(sketch)
+            square_image = crop.make_square_by_mirror(img)
             
-            export_list.append((square_image, str(file_id)))
-            export_list.append((square_sketch, str(file_id) + '_sk'))
+            export_list.append((square_image, file_id))
+            export_sketch_list.append((square_sketch, file_id))
 
     for img, file_id, aspect in lineart_file_batch:
-        crop_image = crop.crop_square_image(img, aspect)
+        crop_image = crop.trim_box(img)
         square_image = make_lineart_square(crop_image)
         line_list.append((square_image, str(file_id)))
         
     for img, id in export_list:
-        cv2.imwrite(str(output_dir / f'{id}.png'), img)
+        cv2.imwrite(str(output_dir / 'rgb' / f'{id}.png'), img)
+    for img, id in export_sketch_list:
+        cv2.imwrite(str(output_dir / 'sketch' / f'{id}_sk.png'), img)
     for img, id in line_list:
         cv2.imwrite(str(lineart_dir / f'{id}_sk.png'), img)
 
     file_batch.clear()
     lineart_file_batch.clear()
+    print("batched")
 
+# def batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir):
+#     export_list = []
+#     export_sketch_list=[]
+#     crop_list = []
+#     line_list = []
+
+#     if len(file_batch) != 0:
+#         for img, _, aspect in file_batch:
+#             crop_image = crop.trim_box(img)
+#             crop_list.append(crop_image)
+
+#         crop_chunk = [crop_list[i:i + batch_input_size] for i in range(0, len(crop_list), batch_input_size)]
+#         sketch_list = []
+        
+#         for chunk in crop_chunk:
+#             sketch_list.extend(sketchify.batch_keras_enhanced(chunk))
+    
+#             for (_, file_id, _), img, sketch in zip(file_batch, crop_list, sketch_list):
+#                 square_sketch = crop.make_square_by_mirror(sketch)
+#                 square_image = crop.make_square_by_mirror(img)
+                
+#                 cv2.imwrite(str(output_dir / 'rgb' / f'{file_id}.png'), square_image)
+#                 cv2.imwrite(str(output_dir / 'sketch' / f'{file_id}_sk.png'), square_sketch)
+                    
+            
+#             sketch_list.clear()
+#             crop_list = crop_list[16:]
+#             file_batch = file_batch[16:]
+
+
+#     for img, file_id, aspect in lineart_file_batch:
+#         crop_image = crop.trim_box(img)
+#         square_image = make_lineart_square(crop_image)
+#         line_list.append((square_image, str(file_id)))
+        
+#     for img, id in line_list:
+#         cv2.imwrite(str(lineart_dir / f'{id}_sk.png'), img)
+
+#     file_batch.clear()
+#     lineart_file_batch.clear()
+#     print("batch!")
 
 if __name__ == '__main__':
     count = 0
+    output_dir = output_dir_path
     lineart_dir = output_dir_path / 'lineart'
     lineart_dir.mkdir(exist_ok=True)
 
-    for json_file_name in os.listdir('./metadata'):
+    for json_file_name in os.listdir('../metadata'):
 
         if not json_file_name.endswith('.json'):
             continue
-
-        output_dir = output_dir_path / json_file_name[:-5]
-        output_dir.mkdir(exist_ok=True)
 
         tagline_list = []
         lineart_tagline_list = []
@@ -126,7 +171,7 @@ if __name__ == '__main__':
         file_batch = []
         lineart_file_batch = []
 
-        with open('metadata/' + json_file_name, 'r', encoding='utf8') as f:
+        with open('../metadata/' + json_file_name, 'r', encoding='utf8') as f:
             print(f'reading metadata/{json_file_name}')
             for line in f:
                 try:
@@ -158,10 +203,15 @@ if __name__ == '__main__':
                         continue
                     if not ((3/4) <= aspect <= (4/3)):
                         continue
+                    if len(tag_id_list) < 8:
+                        continue
 
                     # drop blacklisted tags
                     if any(tag_bl in tag_id_list for tag_bl in TAG_BLACKLIST):
                         continue
+
+                    # if not (TAG_WHITE in tag_id_list or TAG_SIMPLE in tag_id_list):
+                    #     continue
 
                     tagline = metadata_to_tagline(metadata)
                     img = get_image(file_id)
@@ -169,8 +219,9 @@ if __name__ == '__main__':
 
                     # lineart는 따로 처리 (monochrome or greyscale)
                     if TAG_MONOCHROME in tag_id_list or TAG_GREYSCALE in tag_id_list:
-                        lineart_file_batch.append(batch_data)
-                        lineart_tagline_list.append(tagline)
+                        if TAG_WHITE in tag_id_list:
+                            lineart_file_batch.append(batch_data)
+                            lineart_tagline_list.append(tagline)
                     else:
                         count += 1
                         file_batch.append(batch_data)
@@ -183,14 +234,19 @@ if __name__ == '__main__':
                             print(f'parse count: {count}')
 
                 except KeyError as e:
-                    print(e)
+                    traceback.print_exc()
                 except Exception as e:
-                    print(e)
-        
-        batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
+                    print(f"fault in {json_file_name} / {line}")
+                    traceback.print_exc()
+                
+        try:
+            batch_export(file_batch, lineart_file_batch, output_dir, lineart_dir)
 
-        with (output_dir / 'tags.txt').open('w') as tag_file:
-            tag_file.writelines(tagline_list)
+            with (output_dir / 'tags.txt').open('w+') as tag_file:
+                tag_file.writelines(tagline_list)
 
-        with (lineart_dir / 'tags.txt').open('w+') as tag_file:
-            tag_file.writelines(lineart_tagline_list)
+            with (lineart_dir / 'tags.txt').open('w+') as tag_file:
+                tag_file.writelines(lineart_tagline_list)
+
+        except Exception as e:
+            traceback.print_exc()

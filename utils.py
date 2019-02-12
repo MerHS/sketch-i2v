@@ -168,7 +168,7 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_s
             file_id = tag_list[0]
             tag_list = tag_list[1:]
             
-            if not (img_dir_path / f'{file_id}.png').exists():
+            if not (img_dir_path / f'{file_id}_sk.png').exists():
                 continue
 
             if not read_all and len(tag_list) < 8:

@@ -4,11 +4,12 @@ sketchKeras: modified from https://github.com/lllyasviel/sketchKeras
 """
 import cv2
 import numpy as np
+import os
 from keras.models import load_model
 from scipy import ndimage
-from .xdog_blend import *
+from xdog_blend import *
 
-mod = load_model('sketchify/mod.h5')
+mod = load_model(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mod.h5'))
 
 def get_light_map_single(img):
     gray = img

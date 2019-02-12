@@ -1,20 +1,55 @@
 import os, pathlib, math
 import numpy as np
 import cv2
+from PIL import Image, ImageDraw, ImageChops
+
+def trim_box(img):
+    im = Image.fromarray(img)
+    bg = Image.new(im.mode, im.size, im.getpixel((0,0)))
+    diff = ImageChops.difference(im, bg)
+    diff = ImageChops.add(diff, diff, 2.0, -100)
+    bbox = diff.getbbox()
+
+    out_image = im.crop(bbox)
+    return np.array(out_image)
+
 
 def crop_square_image(img, aspect): # aspect = width / height
     h, w = img.shape[:2] # assume that h == w
 
     if aspect > 1: # real width > height / crop horizontal letterbox
         cut = math.ceil((h - w / aspect) / 2)
-        img = img[cut:-cut, :]
+        img = img[cut+1:-(cut-1), :]
     elif aspect < 1: # real width < height / crop vertical letterbox
         cut = math.ceil((w - h * aspect) / 2)
-        img = img[:, cut:-cut]
+        img = img[:, (cut+1):-(cut-1)]
     return img
 
 def is_white(vect):
     return np.all(vect > 250)
+
+def make_square_by_mirror(img):
+    is_bgr = len(img.shape) == 3
+    h, w = img.shape[:2]
+
+    pad_l = abs(h-w) // 2
+    pad_r = abs(h-w) - pad_l
+    if is_bgr:
+        if h > w:
+            pad_width = ((0, 0), (pad_l, pad_r), (0, 0))
+        else:
+            pad_width = ((abs(h-w), 0), (0, 0), (0, 0)) # do not reflect bottom part of torso 
+    else:
+        if h > w:
+            pad_width = ((0, 0), (pad_l, pad_r))
+        else:
+            pad_width = ((abs(h-w), 0), (0, 0))
+
+    if h != w:
+        return np.pad(img, pad_width, mode='symmetric')
+    else:
+        return img
+
 
 def make_square(img, size=256, crop=False, extend=None):
     """
