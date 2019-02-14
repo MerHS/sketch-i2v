@@ -4,6 +4,7 @@ import pickle
 
 import torch, torchvision
 from torch import nn
+from torch.functional import F
 import numpy as np 
 from random import randint
 
@@ -15,16 +16,21 @@ class Trainer(object):
     
     def __init__(self, model, optimizer, test_imgs, save_dir=None, save_freq=5):
         self.model = model
-        if self.cuda:
-            model.cuda()
+        
         self.optimizer = optimizer
         self.save_dir = Path(save_dir)
-        self.test_imgs = test_imgs
         if not self.save_dir.exists():
             self.save_dir.mkdir()
         self.log_path = Path(save_dir) / 'loss_log.txt'
         self.save_freq = save_freq
-        self.loss_f = nn.BCELoss().cuda()
+
+        self.test_imgs = test_imgs
+        self.loss_f = nn.BCELoss()
+
+        if self.cuda:
+            self.model = model.cuda()
+            self.test_imgs = self.test_imgs.cuda()
+            self.loss_f = self.loss_f.cuda()
 
         # assert self.vis.check_connection(), 'No connection could be formed quickly'
 
@@ -42,7 +48,6 @@ class Trainer(object):
             output = self.model(img_tensor)
             
             loss = self.loss_f(output, data_class)
-
             loop_loss.append(loss.data.item() / len(data_loader))
             top_1_index = output.data.max(1)[1].view(-1, 1)
 
@@ -76,10 +81,11 @@ class Trainer(object):
             loss, correct = self._iteration(data_loader, is_train=False)
             if get_mask:
                 test_tensor = self.test_imgs.clone()
-                mask = self.model.get_mask(test_tensor)
+                mask = self.model.module.get_mask(test_tensor)
+                mask = nn.functional.interpolate(mask, scale_factor=8)
                 mask_tensor = torch.cat([self.test_imgs, mask], 1)
-                b, c, _, _ = mask_tensor.size()
-                mask_tensor = mask_tensor.view(b*c, 1, -1, -1)
+                b, c, h, w = mask_tensor.size()
+                mask_tensor = mask_tensor.view(b*c, 1, h, w)
             else:
                 mask_tensor = None
 
@@ -93,9 +99,8 @@ class Trainer(object):
                 scheduler.step()
             print("epochs: {}".format(ep))
             train_loss, train_correct = self.train(train_data)
-            test_loss, test_correct, mask_tensor = self.test(test_data)
+            test_loss, test_correct, mask_tensor = self.test(test_data, get_mask=(not args.old))
             
-
             if do_save:
                 self.save(ep, mask_tensor)
 
@@ -113,7 +118,7 @@ class Trainer(object):
 
             if mask_tensor is not None:
                 torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
-                    nrow=9, padding=0)
+                    nrow=7, padding=0)
 
 
 def get_classid_dict(tag_dump_path):

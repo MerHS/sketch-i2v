@@ -85,25 +85,18 @@ class MiniUNet(nn.Module):
     def __init__(self, inplanes, classes):
         super(MiniUNet, self).__init__()
 
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(inplanes, 32, 3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, 3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
-        )
-        self.down1 = self.conv(32, 64, stride=2)
-        self.down2 = self.conv(64, 128, stride=2)
-        self.down3 = self.conv(128, 128)
+        self.conv1 = self.conv(inplanes, 16)
+        self.down1 = self.conv(16, 32, stride=2)
+        self.down2 = self.conv(32, 64, stride=2)
+        self.down3 = self.conv(64, 64)
 
-        self.up1 = self.conv(128, 64)
-        self.up2 = self.conv(64, 32)
-        self.up_conv1 = self.up_conv(128, 64)
-        self.up_conv2 = self.up_conv(64, 32)
+        self.up1 = self.conv(64, 32)
+        self.up2 = self.conv(32, 16)
+        self.up_conv1 = self.up_conv(64, 32)
+        self.up_conv2 = self.up_conv(32, 16)
 
         self.segmentize = nn.Sequential(
-            nn.Conv2d(32, classes, 3, padding=1),
+            nn.Conv2d(16, classes, 3, padding=1),
             nn.Sigmoid()
         )
 
@@ -111,15 +104,16 @@ class MiniUNet(nn.Module):
         return nn.Sequential(
             nn.Conv2d(in_channel, out_channel, 3, stride=stride, padding=1),
             nn.BatchNorm2d(out_channel),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv2d(out_channel, out_channel, 3, padding=1),
             nn.BatchNorm2d(out_channel),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
 
     def up_conv(self, in_channel, out_channel):
         return nn.Sequential(
             nn.ConvTranspose2d(in_channel, out_channel, 3, stride=2, padding=1, output_padding=1)
+            #nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         )
 
     def forward(self, x):
@@ -168,6 +162,7 @@ class MultiSEResNeXt(nn.Module):
             self.classifier_list.append(
                 nn.Linear(512 * block.expansion, len(class_part_list))
             )
+        self.sigmoid = nn.Sigmoid()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -222,6 +217,8 @@ class MultiSEResNeXt(nn.Module):
             out.append(x)
             
         out = torch.cat(out, 1)
+        out = self.sigmoid(out)
+        
         return out
 
     def get_mask(self, x):

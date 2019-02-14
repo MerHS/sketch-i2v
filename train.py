@@ -63,7 +63,7 @@ def get_dataloader(args):
         test_imgs.append(to_tensor(test_img))
 
         count += 1
-        if count > 8:
+        if count > 16:
             break
     test_imgs = torch.stack(test_imgs)
             
