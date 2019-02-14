@@ -103,7 +103,7 @@ class MiniUNet(nn.Module):
         self.up_conv2 = self.up_conv(64, 32)
 
         self.segmentize = nn.Sequential(
-            nn.Conv2d(in_channel, classes, 3, padding=1),
+            nn.Conv2d(32, classes, 3, padding=1),
             nn.Sigmoid()
         )
 
@@ -233,10 +233,7 @@ class MultiSEResNeXt(nn.Module):
         mask = self.layer_mask(x)
         return mask
 
-def se_resnext50(num_classes=1000):
-    model = SEResNeXt(SEBottleneckX, [3, 4, 6, 3], num_classes=num_classes)
-    return model
 
-def multi_serx50(class_list):
-    model = MultiSEResNeXt(SEBottleneckX, [3, 4, 6, 3], class_list=class_list)
+def multi_serx50(class_list, input_channels):
+    model = MultiSEResNeXt(SEBottleneckX, [3, 4, 6, 3], class_list=class_list, input_channels=input_channels)
     return model

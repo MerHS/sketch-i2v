@@ -14,25 +14,27 @@ if __name__ == '__main__':
             tag_dict[tag_name] = int(tag_id)
             tag_count_dict[tag_id] = int(tag_count)
 
-    iv_tag_list = set()
-    cv_tag_list = set()
+    iv_tag_list = list()
+    cv_tag_list = list()
     iv_part_list = list()
     cv_part_list = list()
 
     tag_ids = set(tag_dict.values())
-
+    print("----CIT----")
     for fn in color_invariant_files:
         with open('CIT/' + fn, 'r') as f:
             part_name = fn[:-4]
+            print(part_name)
             part_list = []
             for line in f:
                 tag_line = line.split()
-                tag_id, tag_name = tag_line[0], tag_line[1]
+                tag_id, tag_name = int(tag_line[0]), tag_line[1]
                 if tag_id in tag_ids:
-                    iv_tag_list.add(tag_id)
+                    iv_tag_list.append(tag_id)
                     part_list.append(tag_id)
             iv_part_list.append((part_name, part_list))
 
+    print("----CVT----")
     for fn in color_variant_files:
         with open('CVT/' + fn, 'r') as f:
             part_name = fn[:-4]
@@ -40,14 +42,11 @@ if __name__ == '__main__':
             part_list = []
             for line in f:
                 tag_line = line.split()
-                tag_id, tag_name = tag_line[0], tag_line[1]
+                tag_id, tag_name = int(tag_line[0]), tag_line[1]
                 if tag_id in tag_ids:
-                    cv_tag_list.add(tag_id)
+                    cv_tag_list.append(tag_id)
                     part_list.append(tag_id)
             cv_part_list.append((part_name, part_list))
-
-    iv_tag_list = list(iv_tag_list)
-    cv_tag_list = list(cv_tag_list)
 
     result = {
         'iv_tag_list': iv_tag_list,

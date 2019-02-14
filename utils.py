@@ -2,7 +2,7 @@ from pathlib import Path
 import shutil
 import pickle
 
-import torch
+import torch, torchvision
 from torch import nn
 import numpy as np 
 from random import randint
@@ -13,20 +13,18 @@ class Trainer(object):
     cuda = torch.cuda.is_available()
     torch.backends.cudnn.benchmark = True
     
-    def __init__(self, model, optimizer, save_dir=None, save_freq=5):
+    def __init__(self, model, optimizer, test_imgs, save_dir=None, save_freq=5):
         self.model = model
         if self.cuda:
             model.cuda()
         self.optimizer = optimizer
         self.save_dir = Path(save_dir)
+        self.test_imgs = test_imgs
         if not self.save_dir.exists():
             self.save_dir.mkdir()
         self.log_path = Path(save_dir) / 'loss_log.txt'
         self.save_freq = save_freq
         self.loss_f = nn.BCELoss().cuda()
-        self.vis = None # Visdom(port=8097, server='http://localhost')
-        self.win_loss = None
-        self.win_correct = None
 
         # assert self.vis.check_connection(), 'No connection could be formed quickly'
 
@@ -76,8 +74,14 @@ class Trainer(object):
         self.model.eval()
         with torch.no_grad():
             loss, correct = self._iteration(data_loader, is_train=False)
+            
+            test_tensor = self.test_imgs.clone()
+            mask = self.model.get_mask(test_tensor)
+            mask_tensor = torch.cat([self.test_imgs, mask], 1)
+            b, c, _, _ = mask_tensor.size()
+            mask_tensor = mask_tensor.view(b*c, 1, -1, -1)
 
-        return loss, (correct * 100)
+        return loss, (correct * 100), mask_tensor
 
     def loop(self, args, epochs, train_data, test_data, scheduler=None, do_save=True):
         arg_text = str(args)
@@ -87,37 +91,13 @@ class Trainer(object):
                 scheduler.step()
             print("epochs: {}".format(ep))
             train_loss, train_correct = self.train(train_data)
-            test_loss, test_correct = self.test(test_data)
-
-            # if self.win_loss is None:
-            #     self.win_loss = self.vis.line(
-            #         Y=np.column_stack((train_loss, test_loss)),
-            #         X=np.column_stack((ep, ep)), 
-            #         opts=dict(title='loss', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='loss')
-            #     )
-            #     self.win_correct = self.vis.line(
-            #         Y=np.column_stack((train_correct, test_correct)),
-            #         X=np.column_stack((ep, ep)), 
-            #         opts=dict(title='correct', legend=['train', 'test'], showlegend=True, xlabel='epoch', ylabel='correct')
-            #     )
-            # else:
-            #     self.vis.line(
-            #         Y=np.column_stack((train_loss, test_loss)),
-            #         X=np.column_stack((ep, ep)), 
-            #         win=self.win_loss,
-            #         update='append'
-            #     )
-            #     self.vis.line(
-            #         Y=np.column_stack((train_correct, test_correct)),
-            #         X=np.column_stack((ep, ep)), 
-            #         win=self.win_correct,
-            #         update='append'
-            #     )
+            test_loss, test_correct, mask_tensor = self.test(test_data)
+            
 
             if do_save:
-                self.save(ep)
+                self.save(ep, mask_tensor)
 
-    def save(self, epoch, **kwargs):
+    def save(self, epoch, mask_tensor, **kwargs):
         if self.save_dir is not None:
             model_out_path = self.save_dir
             state = {
@@ -127,7 +107,9 @@ class Trainer(object):
             }
             if not model_out_path.exists():
                 model_out_path.mkdir()
-            torch.save(state, model_out_path / "model_epoch_{}.pth".format(epoch))
+            torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
+            torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
+                nrow=8,padding=0)
 
 
 def get_classid_dict(tag_dump_path):
@@ -139,6 +121,8 @@ def get_classid_dict(tag_dump_path):
         pkl = pickle.load(f)
         iv_tag_list = pkl['iv_tag_list']
         cv_tag_list = pkl['cv_tag_list']
+        iv_part_list = pkl['iv_part_list']
+        cv_part_list = pkl['cv_part_list']
     except EnvironmentError:
         raise Exception(f'{tag_dump_path} does not exist. You should make tag dump file using taglist/tag_indexer.py')
 
@@ -147,7 +131,7 @@ def get_classid_dict(tag_dump_path):
     for i, tag_id in enumerate(cv_tag_list):
         cv_dict[tag_id] = i
 
-    return (iv_dict, cv_dict)
+    return (iv_dict, cv_dict, iv_part_list, cv_part_list)
 
 
 def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_size=0, read_all=False):
@@ -164,11 +148,11 @@ def read_tagline_txt(tag_txt_path, img_dir_path, classid_dict, class_len, data_s
 
     with tag_txt_path.open('r') as f:
         for line in f:
-            tag_list = list(map(int, line.split(' ')))
+            tag_list = list(map(int, line.split()))
             file_id = tag_list[0]
             tag_list = tag_list[1:]
             
-            if not (img_dir_path / f'{file_id}_sk.png').exists():
+            if not (img_dir_path / f'{file_id}.png').exists():
                 continue
 
             if not read_all and len(tag_list) < 8:
