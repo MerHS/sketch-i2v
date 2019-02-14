@@ -109,7 +109,7 @@ class Trainer(object):
                 model_out_path.mkdir()
             torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
             torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
-                nrow=8,padding=0)
+                nrow=9, padding=0)
 
 
 def get_classid_dict(tag_dump_path):

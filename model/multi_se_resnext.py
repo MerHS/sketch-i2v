@@ -88,12 +88,12 @@ class MiniUNet(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(inplanes, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.LeakyReLU(inplace=True)
+            nn.ReLU(inplace=True)
         )
-        self.down1 = self.conv(inplanes, 64, stride=2)
+        self.down1 = self.conv(32, 64, stride=2)
         self.down2 = self.conv(64, 128, stride=2)
         self.down3 = self.conv(128, 128)
 
@@ -164,20 +164,23 @@ class MultiSEResNeXt(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.classifier_list = []
-        for class_count in class_list:
+        for class_name, class_part_list in class_list:
             self.classifier_list.append(
-                nn.Linear(512 * block.expansion, class_count)
+                nn.Linear(512 * block.expansion, len(class_part_list))
             )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight)
-                m.bias.data.zero_()
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
 
     def _make_layer(self, block, planes, block_count, stride=1):
         downsample = None

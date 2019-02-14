@@ -26,15 +26,15 @@ def get_dataloader(args):
     batch_size = args.batch_size
 
     data_dir = Path(args.data_dir)
-    train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'test_train']
+    train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'xdog_train']
     test_dir = data_dir / "liner_test"
     
     iv_dict, _, iv_part_list, _ = get_classid_dict(args.tag_dump)
     class_len = len(iv_dict)
 
     data_augmentation = [transforms.RandomHorizontalFlip(), 
-                         transforms.RandomApply(transforms.RandomRotation(10)),
-                         transforms.RandomResizedCrop((512, 512), scale=(0.9, 1.0), ratio=(0.95, 1.05)),
+                         transforms.RandomApply([transforms.RandomRotation(10)]),
+                         transforms.RandomResizedCrop(512, scale=(0.9, 1.0), ratio=(0.95, 1.05)),
                          transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)]
 
     to_tensor = [transforms.Resize((256, 256), interpolation=Image.LANCZOS),
@@ -57,11 +57,15 @@ def get_dataloader(args):
     test = RawSketchDataset(test_dir, test_id_list, test_class_list, transform=to_tensor)
     
     test_imgs = []
-    for _ in range(8):
-        for fn in test_dir.iterdir():
-            test_img = Image.open(str(fn)).convert('L')
-            test_imgs.append(to_tensor(test_img))
-            test_imgs = torch.Tensor(test_imgs)
+    count = 0
+    for fn in test_dir.iterdir():
+        test_img = Image.open(str(fn)).convert('L')
+        test_imgs.append(to_tensor(test_img))
+
+        count += 1
+        if count > 8:
+            break
+    test_imgs = torch.stack(test_imgs)
             
     print(f'test_imgs size: {test_imgs.size()}')
     print('making dataloader...')

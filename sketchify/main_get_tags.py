@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 # directory path of 512px or original folder of danbooru2017 dataset
-IMAGE_DIRECTORY = 'C:\\Users\\starv\\work\\new_dataset\\sketch' 
+IMAGE_DIRECTORY = 'C:\\Users\\starv\\work\\dataset\\liner_test'
 
 TAG_SIMPLE = 412368
 TAG_WHITE = 515193
@@ -25,7 +25,7 @@ def metadata_to_tagline(metadata):
 if __name__ == '__main__':
     count = 0
     
-    with open('C:\\Users\\starv\\work\\new_dataset\\tags.txt', 'a+') as fw:
+    with open('C:\\Users\\starv\\work\\dataset\\tags.txt', 'a+') as fw:
         for json_file_name in os.listdir('../metadata'):
             if not json_file_name.endswith('.json'):
                 continue
@@ -39,8 +39,6 @@ if __name__ == '__main__':
                     
                     if not is_image_exists(file_id):
                         continue
-
-                    tag_id_list = list(map(lambda t: int(t['id']), tags))
 
                     tagline = metadata_to_tagline(metadata)
                     fw.write(tagline)

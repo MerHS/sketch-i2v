@@ -12,7 +12,7 @@ def real_uniform(id, a, b):
 
 class MultiSketchDataset(Dataset):
     def __init__(self, image_dir_path_list, file_id_list, iv_tag_list, 
-            override_len=None, transform=None, **kwargs):
+            override_len=0, transform=None, **kwargs):
         self.image_dir_path_list = image_dir_path_list
         self.file_id_list = file_id_list
         self.iv_tag_list = iv_tag_list
@@ -39,7 +39,7 @@ class MultiSketchDataset(Dataset):
 
 class RawSketchDataset(Dataset):
     def __init__(self, image_dir_path, file_id_list, iv_tag_list, 
-            override_len=None, transform=None, **kwargs):
+            override_len=0, transform=None, **kwargs):
         self.image_dir_path = image_dir_path
         self.file_id_list = file_id_list
         self.iv_tag_list = iv_tag_list
