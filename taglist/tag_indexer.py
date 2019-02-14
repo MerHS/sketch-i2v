@@ -1,8 +1,7 @@
 import pickle
 
-color_invariant_files = ['bodypart.txt', 'face_hair.txt', 'fashion.txt', 
-    'object.txt', 'pose.txt']
-color_variant_files = ['colorpart.txt', 'background.txt']
+color_invariant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'face.txt', 'hair.txt', 'object.txt']
+color_variant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'face.txt', 'hair.txt', 'background.txt']
 tag_list_file = 'tags.txt'
 
 if __name__ == '__main__':
@@ -17,29 +16,44 @@ if __name__ == '__main__':
 
     iv_tag_list = set()
     cv_tag_list = set()
+    iv_part_list = list()
+    cv_part_list = list()
 
-    tag_keys = set(tag_dict.keys())
+    tag_ids = set(tag_dict.values())
 
     for fn in color_invariant_files:
-        with open(fn, 'r') as f:
+        with open('CIT/' + fn, 'r') as f:
+            part_name = fn[:-4]
+            part_list = []
             for line in f:
-                tag_name = line.split()[0]
-                if tag_name in tag_keys:
-                    iv_tag_list.add(tag_dict[tag_name])
+                tag_line = line.split()
+                tag_id, tag_name = tag_line[0], tag_line[1]
+                if tag_id in tag_ids:
+                    iv_tag_list.add(tag_id)
+                    part_list.append(tag_id)
+            iv_part_list.append((part_name, part_list))
 
     for fn in color_variant_files:
-        with open(fn, 'r') as f:
+        with open('CVT/' + fn, 'r') as f:
+            part_name = fn[:-4]
+            print(part_name)
+            part_list = []
             for line in f:
-                tag_name = line.split()[0]
-                if tag_name in tag_keys:
-                    cv_tag_list.add(tag_dict[tag_name])
+                tag_line = line.split()
+                tag_id, tag_name = tag_line[0], tag_line[1]
+                if tag_id in tag_ids:
+                    cv_tag_list.add(tag_id)
+                    part_list.append(tag_id)
+            cv_part_list.append((part_name, part_list))
 
     iv_tag_list = list(iv_tag_list)
     cv_tag_list = list(cv_tag_list)
 
     result = {
         'iv_tag_list': iv_tag_list,
+        'iv_part_list' : iv_part_list,
         'cv_tag_list': cv_tag_list,
+        'cv_part_list' : cv_part_list,
         'tag_dict': tag_dict,
         'tag_count_dict': tag_count_dict
     }

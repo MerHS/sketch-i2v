@@ -89,4 +89,3 @@
 436054 highleg 406
 635786 index_finger_raised 403
 14635 paws 349
-695946 white_blouse 328

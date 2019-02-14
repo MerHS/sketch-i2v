@@ -1,19 +1,15 @@
-470575 1girl 57306
-212816 solo 54951
 464575 ribbon 11929
 2241 dress 11861
-566835 multiple_girls 11487
 608813 full_body 11233
-1821 2girls 9045
 547463 upper_body 8794
 16509 school_uniform 8691
 12289 sitting 8543
-540830 1boy 7308
 16613 jewelry 7079
 375387 holding 6900
 15675 standing 6771
 2866 wings 4760
-464906 underwear 4708268819 serafuku 4649
+464906 underwear 4708
+268819 serafuku 4649
 1747 chibi 4487
 194013 frills 4018
 1707 japanese_clothes 3715
@@ -21,7 +17,6 @@
 9864 belt 2923
 6539 bikini 2409
 6346 cape 2356
-568656 multiple_boys 2302
 410129 looking_back 2266
 4659 armor 2227
 4152 uniform 2157
@@ -33,13 +28,11 @@
 451155 hand_on_hip 1806
 445 kimono 1796
 273 apron 1727
-449194 2boys 1656
 5126 hug 1613
 425206 magical_girl 1543
 7820 military 1461
 234192 from_behind 1422
 301022 lying 1364
-399836 3girls 1348
 10447 kneeling 1336
 9344 bodysuit 1334
 387214 military_uniform 1306
@@ -69,9 +62,7 @@
 465810 squatting 560
 410734 carrying 548
 533054 waist_apron 545
-412555 4girls 470
 396969 seiza 470
-460502 dual_wielding 460
 479146 sailor_dress 425
 4172 corset 425
 452112 tabard 423
