@@ -70,16 +70,18 @@ class Trainer(object):
 
         return loss, (correct * 100)
 
-    def test(self, data_loader):
+    def test(self, data_loader, get_mask=False):
         self.model.eval()
         with torch.no_grad():
             loss, correct = self._iteration(data_loader, is_train=False)
-            
-            test_tensor = self.test_imgs.clone()
-            mask = self.model.get_mask(test_tensor)
-            mask_tensor = torch.cat([self.test_imgs, mask], 1)
-            b, c, _, _ = mask_tensor.size()
-            mask_tensor = mask_tensor.view(b*c, 1, -1, -1)
+            if get_mask:
+                test_tensor = self.test_imgs.clone()
+                mask = self.model.get_mask(test_tensor)
+                mask_tensor = torch.cat([self.test_imgs, mask], 1)
+                b, c, _, _ = mask_tensor.size()
+                mask_tensor = mask_tensor.view(b*c, 1, -1, -1)
+            else:
+                mask_tensor = None
 
         return loss, (correct * 100), mask_tensor
 
@@ -108,8 +110,10 @@ class Trainer(object):
             if not model_out_path.exists():
                 model_out_path.mkdir()
             torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
-            torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
-                nrow=9, padding=0)
+
+            if mask_tensor is not None:
+                torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
+                    nrow=9, padding=0)
 
 
 def get_classid_dict(tag_dump_path):

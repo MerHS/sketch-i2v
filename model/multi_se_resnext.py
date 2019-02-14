@@ -163,7 +163,7 @@ class MultiSEResNeXt(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
-        self.classifier_list = []
+        self.classifier_list = nn.ModuleList([])
         for class_name, class_part_list in class_list:
             self.classifier_list.append(
                 nn.Linear(512 * block.expansion, len(class_part_list))
