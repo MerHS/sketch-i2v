@@ -112,8 +112,9 @@ class MiniUNet(nn.Module):
 
     def up_conv(self, in_channel, out_channel):
         return nn.Sequential(
-            nn.ConvTranspose2d(in_channel, out_channel, 3, stride=2, padding=1, output_padding=1)
-            #nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            # nn.ConvTranspose2d(in_channel, out_channel, 3, stride=2, padding=1, output_padding=1)
+            # nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            nn.PixelShuffle(upscale_factor=2)
         )
 
     def forward(self, x):

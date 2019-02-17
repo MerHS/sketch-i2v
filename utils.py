@@ -91,7 +91,7 @@ class Trainer(object):
 
         return loss, (correct * 100), mask_tensor
 
-    def loop(self, args, epochs, train_data, test_data, scheduler=None, do_save=True):
+    def loop(self, args, epochs, train_data, test_data, keras_data, scheduler=None, do_save=True):
         arg_text = str(args)
         # self.vis.text(arg_text)
         for ep in range(args.resume_epoch + 1, epochs + 1):
@@ -100,7 +100,8 @@ class Trainer(object):
             print("epochs: {}".format(ep))
             train_loss, train_correct = self.train(train_data)
             test_loss, test_correct, mask_tensor = self.test(test_data, get_mask=(not args.old))
-            
+            keras_loss, keras_correct, _ = self.test(keras_data)
+
             if do_save:
                 self.save(ep, mask_tensor)
 

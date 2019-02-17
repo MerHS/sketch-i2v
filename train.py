@@ -27,8 +27,9 @@ def get_dataloader(args):
 
     data_dir = Path(args.data_dir)
     train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'xdog_train']
-    test_dir = data_dir / "liner_test"
-    
+    test_raw_dir = data_dir / "liner_test"
+    test_keras_dir = data_dir / "keras_test"
+
     iv_dict, _, iv_part_list, _ = get_classid_dict(args.tag_dump)
     class_len = len(iv_dict)
 
@@ -46,7 +47,9 @@ def get_dataloader(args):
 
     print('reading test set tagline')
     (test_id_list, test_class_list) = read_tagline_txt(
-        data_dir / "tags.txt", test_dir, iv_dict, class_len, read_all=True)
+        data_dir / "tags.txt", test_raw_dir, iv_dict, class_len, read_all=True)
+    (test_keras_id_list, test_keras_class_list) = read_tagline_txt(
+        data_dir / "tags.txt", test_keras_dir, iv_dict, class_len, read_all=True)
 
     print('making train dataset...')
     
@@ -54,11 +57,12 @@ def get_dataloader(args):
         transform=transforms.Compose(data_augmentation + to_tensor))
 
     to_tensor = transforms.Compose(to_tensor)
-    test = RawSketchDataset(test_dir, test_id_list, test_class_list, transform=to_tensor)
-    
+    test_raw = RawSketchDataset(test_raw_dir, test_id_list, test_class_list, transform=to_tensor)
+    test_keras = RawSketchDataset(test_keras_dir, test_keras_id_list, test_keras_class_list, transform=to_tensor)
+
     test_imgs = []
     count = 0
-    for fn in test_dir.iterdir():
+    for fn in test_raw_dir.iterdir():
         test_img = Image.open(str(fn)).convert('L')
         test_imgs.append(to_tensor(test_img))
 
@@ -70,14 +74,15 @@ def get_dataloader(args):
     print(f'test_imgs size: {test_imgs.size()}')
     print('making dataloader...')
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
-    test_loader = DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=args.thread)
-    
-    return class_len, train_loader, test_loader, iv_part_list, test_imgs
+    test_loader = DataLoader(test_raw, batch_size=batch_size, shuffle=True, num_workers=args.thread)
+    keras_loader = DataLoader(test_keras, batch_size=batch_size, shuffle=True, num_workers=args.thread)
+
+    return class_len, train_loader, test_loader, keras_loader, iv_part_list, test_imgs
 
 
 def main(args):
     print('making dataloader...')
-    class_len, train_loader, test_loader, iv_part_list, test_imgs = get_dataloader(args)
+    class_len, train_loader, test_loader, keras_loader, iv_part_list, test_imgs = get_dataloader(args)
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
@@ -115,7 +120,7 @@ def main(args):
     trainer = Trainer(model_par, optimizer, save_dir=args.out_dir, test_imgs=test_imgs)
 
     print(f'start loop')
-    trainer.loop(args, args.epoch, train_loader, test_loader, scheduler, do_save=True)
+    trainer.loop(args, args.epoch, train_loader, test_loader, keras_loader, scheduler, do_save=True)
 
 
 def calc_meanstd(args):
@@ -165,3 +170,5 @@ if __name__ == '__main__':
         calc_meanstd(args)
     else:
         main(args)
+
+#python train.py --data_dir=../dataset --out_dir ./result_dir2 --old --batch_size=48
