@@ -204,14 +204,15 @@ if __name__ == '__main__':
     p.add_argument("--resume_epoch", default=0, type=int)
     p.add_argument("--load_path", default="result.pth")
     p.add_argument("--color", action="store_true")
-    p.add_argument("--old", action="store_true")
+    p.add_argument("--old", action="store_false")
     p.add_argument("--calc", action="store_true")
 
     args = p.parse_args()
+    print(args)
 
     if args.calc:
         calc_meanstd(args)
     else:
         main(args)
 
-#python train.py --data_dir=../dataset --out_dir ./result_dir2 --old --batch_size=48
+#python train.py --data_dir=../dataset --out_dir ./result_dir2 --batch_size=48 --thread=4 --color

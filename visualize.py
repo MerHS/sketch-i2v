@@ -26,15 +26,16 @@ def return_cam(feature_conv, weight_softmax, class_idx):
     # generate the class activation maps upsample to 256x256
     size_upsample = (256, 256)
     bz, nc, h, w = feature_conv.shape
+    print(h,w)
     output_cam = []
     for idx in class_idx:
         cam = weight_softmax[idx].dot(feature_conv.reshape((nc, h*w)))
         cam = cam.reshape(h, w)
         cam = cam - np.min(cam)
-        cam_img = cam / np.max(cam)
+        cam_img = 1 - (cam / np.max(cam))
         cam_img = np.uint8(255 * cam_img)
         output_cam.append(cv2.resize(cam_img, size_upsample))
-    return output_cam
+    return np.uint8(np.average(output_cam, 0))
 
 def class_info(tag_dump_path):
     try:
@@ -47,10 +48,13 @@ def class_info(tag_dump_path):
         raise Exception(f'{tag_dump_path} does not exist. You should make tag dump file using taglist/tag_indexer.py')
 
     tag_rev_dict = dict()
+    idx_dict = dict()
     for k, v in tag_dict.items():
         tag_rev_dict[v] = k
+    for i, tag_id in enumerate(iv_tag_list):
+        idx_dict[tag_id] = i
 
-    return iv_tag_list, iv_part_list, tag_rev_dict
+    return iv_tag_list, idx_dict, iv_part_list, tag_rev_dict
 
 def get_cam(args, model, tag_dump, features_blobs, weight_softmax):
     img_path = args.img_path
@@ -61,10 +65,11 @@ def get_cam(args, model, tag_dump, features_blobs, weight_softmax):
 
     img_tensor = preprocess(img_pil).unsqueeze(0)
 
-    (tag_list, tag_part_list, tag_rev_dict) = tag_dump
+    (tag_list, idx_dict, tag_part_list, tag_rev_dict) = tag_dump
 
     result = model(img_tensor)
     probs, idx = result.squeeze().sort(0, True)
+    rs = result.squeeze()
     probs = probs.numpy()
     idx = idx.numpy()
 
@@ -72,14 +77,23 @@ def get_cam(args, model, tag_dump, features_blobs, weight_softmax):
     for i in range(0, 5):
         print('{:.3f} -> {}'.format(probs[i], tag_rev_dict[tag_list[idx[i]]]))
 
+    part_no = args.part
+    parts = tag_part_list[part_no][1]
+
+    high_parts = [high_i for high_i in idx[:20] if tag_list[high_i] in parts]
+    for hi in high_parts:
+        print(f"higher: {rs[hi]:4f} / {tag_rev_dict[tag_list[hi]]}")
+
     # generate class activation mapping for the top1 prediction
-    CAMs = return_cam(features_blobs[0], weight_softmax, [idx[0]])
+    print(f'get avg of {tag_part_list[part_no][0]}')
+    # CAMs = return_cam(features_blobs[0], weight_softmax, high_parts)
+    CAMs = return_cam(features_blobs[0], weight_softmax, [tag_part_list[part_no[0]]])
 
     # render the CAM and output
     print(f'output CAM.jpg for the top1 prediction: {tag_rev_dict[tag_list[idx[0]]]}')
     img = cv2.imread(img_path)
     height, width, _ = img.shape
-    heatmap = cv2.applyColorMap(cv2.resize(CAMs[0], (width, height)), cv2.COLORMAP_JET)
+    heatmap = cv2.applyColorMap(cv2.resize(CAMs, (width, height)), cv2.COLORMAP_JET)
     result = heatmap * 0.3 + img * 0.5
 
     return result
@@ -91,10 +105,12 @@ if __name__ == '__main__':
     p.add_argument("--load_path", default="result.pth")
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--old", action="store_true")
+    p.add_argument("--part", type=int, default=0)
     p.add_argument("img_path")
     args = p.parse_args()
 
-    tag_list, tag_part_list, tag_rev_dict = class_info(args.tag_dump)
+    tag_dump = class_info(args.tag_dump)
+    tag_list, idx_dict, tag_part_list, tag_rev_dict = tag_dump
     class_len = len(tag_list)
     in_channels = 1
 
@@ -125,8 +141,7 @@ if __name__ == '__main__':
     weight_softmax = np.squeeze(params[-2].data.numpy())
 
     with torch.no_grad():
-        result = get_cam(args, model, (tag_list, tag_part_list, tag_rev_dict),
-                        features_blobs, weight_softmax)
+        result = get_cam(args, model, tag_dump, features_blobs, weight_softmax)
     cv2.imwrite("test.png", result)
 
 #python visualize.py 1077425.png --load_path=./result_dir2/model_epoch_92.pth --old
