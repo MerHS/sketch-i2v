@@ -25,6 +25,7 @@ class Trainer(object):
         self.save_freq = save_freq
 
         self.test_imgs = test_imgs
+        self.epoch = 0
         self.loss_f = nn.BCELoss()
 
         if self.cuda:
@@ -60,7 +61,7 @@ class Trainer(object):
         mode = "train" if is_train else "test"
         loss_value = sum(loop_loss)
         accuracy_value = sum(accuracy) / len(data_loader.dataset)
-        loss_txt = f">>>[{mode}] loss: {loss_value:.10f} / top-1 accuracy: {accuracy_value:.2%}"
+        loss_txt = f">>>[{mode}] epoch: {self.epoch} loss: {loss_value:.10f} / top-1 accuracy: {accuracy_value:.2%}"
         print(loss_txt)
         
         with self.log_path.open('a') as f:
@@ -91,16 +92,18 @@ class Trainer(object):
 
         return loss, (correct * 100), mask_tensor
 
-    def loop(self, args, epochs, train_data, test_data, keras_data, scheduler=None, do_save=True):
+    def loop(self, args, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         arg_text = str(args)
         # self.vis.text(arg_text)
         for ep in range(args.resume_epoch + 1, epochs + 1):
             if scheduler is not None:
                 scheduler.step()
             print("epochs: {}".format(ep))
+            self.epoch = ep
+
             train_loss, train_correct = self.train(train_data)
             test_loss, test_correct, mask_tensor = self.test(test_data, get_mask=(not args.old))
-            keras_loss, keras_correct, _ = self.test(keras_data)
+            raw_loss, raw_correct, _ = self.test(raw_data, get_mask=False)
 
             if do_save:
                 self.save(ep, mask_tensor)

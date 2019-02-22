@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import pickle
+import pickle, math, random
 import os.path
 
 import torch
@@ -8,11 +8,12 @@ import torch.optim as optim
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from torchvision.transforms import functional as tvF
 
 from model.se_resnet import se_resnext50
 from model.multi_se_resnext import multi_serx50
 from model.vgg import vgg11_bn
-from model.datasets import MultiSketchDataset, RawSketchDataset
+from model.datasets import MultiImageDataset, RawSketchDataset
 from utils import *
 from test import load_weight
 from tqdm import tqdm
@@ -22,48 +23,86 @@ DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data
 OUT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'result')
 TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
 
+def rot_crop(x):
+    """return maximum width ratio of rotated image without letterbox"""
+    x = abs(x)
+    deg45 = math.pi * 0.25
+    deg135 = math.pi * 0.75
+    x = x * math.pi / 180
+    a = (math.sin(deg135 - x) - math.sin(deg45 - x))/(math.cos(deg135-x)-math.cos(deg45-x))
+    return math.sqrt(2) * (math.sin(deg45-x) - a*math.cos(deg45-x)) / (1-a)
+
+class RandomFRC(transforms.RandomResizedCrop):
+    """RandomHorizontalFlip + RandomRotation + RandomResizedCrop 2 images"""
+    def __call__(self, img):
+        if random.random() < 0.5:
+            img = tvF.hflip(img)
+        if random.random() < 0.5:
+            rot = random.uniform(-10, 10)
+            crop_ratio = rot_crop(rot)
+            img = tvF.rotate(img, rot, resample=Image.BILINEAR)
+            img = tvF.center_crop(img, int(img.size[0] * crop_ratio))
+        
+        i, j, h, w = self.get_params(img, self.scale, self.ratio)
+        # return the image with the same transformation
+        return (tvF.resized_crop(img, i, j, h, w, self.size, self.interpolation))
+
 def get_dataloader(args):
     batch_size = args.batch_size
-
     data_dir = Path(args.data_dir)
-    train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'xdog_train']
-    test_raw_dir = data_dir / "liner_test"
-    test_keras_dir = data_dir / "keras_test"
-
-    iv_dict, _, iv_part_list, _ = get_classid_dict(args.tag_dump)
-    class_len = len(iv_dict)
-
-    data_augmentation = [transforms.RandomHorizontalFlip(), 
-                         transforms.RandomApply([transforms.RandomRotation(10)]),
-                         transforms.RandomResizedCrop(512, scale=(0.9, 1.0), ratio=(0.95, 1.05)),
-                         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)]
-
+    
+    iv_dict, cv_dict, iv_part_list, cv_part_list = get_classid_dict(args.tag_dump)
+    
+    data_augmentation = [RandomFRC(512, scale=(0.9, 1.0), ratio=(0.95, 1.05))]
     to_tensor = [transforms.Resize((256, 256), interpolation=Image.LANCZOS),
                  transforms.ToTensor()]
+    
+    if args.color:
+        train_dir_list = [data_dir / 'rgb_train']
+        test_dir = data_dir / "rgb_test"        
+        class_dict = cv_dict
+        class_part_list = cv_part_list
+    else:
+        train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'xdog_train']
+        test_dir = data_dir / "keras_test"
+        class_dict = iv_dict
+        class_part_list = iv_part_list
+        data_augmentation += transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
+
+    test_raw_dir = data_dir / "liner_test"
+    class_len = len(class_dict)
 
     print('reading train set tagline')
     (train_id_list, train_class_list) = read_tagline_txt(
-        data_dir / "tags.txt", train_dir_list[0], iv_dict, class_len, args.data_size, read_all=True)
+        data_dir / "tags.txt", train_dir_list[0], class_dict, class_len, args.data_size, read_all=True)
 
     print('reading test set tagline')
     (test_id_list, test_class_list) = read_tagline_txt(
-        data_dir / "tags.txt", test_raw_dir, iv_dict, class_len, read_all=True)
-    (test_keras_id_list, test_keras_class_list) = read_tagline_txt(
-        data_dir / "tags.txt", test_keras_dir, iv_dict, class_len, read_all=True)
+        data_dir / "tags.txt", test_dir, class_dict, class_len, read_all=True)
 
     print('making train dataset...')
     
-    train = MultiSketchDataset(train_dir_list, train_id_list, train_class_list, override_len=args.data_size,
-        transform=transforms.Compose(data_augmentation + to_tensor))
+    train = MultiImageDataset(train_dir_list, train_id_list, train_class_list, override_len=args.data_size,
+        transform=transforms.Compose(data_augmentation + to_tensor), is_color=args.color)
 
     to_tensor = transforms.Compose(to_tensor)
-    test_raw = RawSketchDataset(test_raw_dir, test_id_list, test_class_list, transform=to_tensor)
-    test_keras = RawSketchDataset(test_keras_dir, test_keras_id_list, test_keras_class_list, transform=to_tensor)
+    if args.color:
+        test_img_dir = test_dir
+        test_raw = None
+    else:
+        test_img_dir = test_raw_dir
+        (test_raw_id_list, test_raw_class_list) = read_tagline_txt(
+            data_dir / "tags.txt", test_raw_dir, class_dict, class_len, read_all=True)
+        test_raw = RawSketchDataset(test_raw_dir, test_raw_id_list, test_raw_class_list, 
+            transform=to_tensor)
+    
+    test = MultiImageDataset([test_dir], test_id_list, test_class_list, transform=to_tensor, is_color=args.color)
 
+    conv_arg = 'RGB' if args.color else 'L'
     test_imgs = []
     count = 0
-    for fn in test_raw_dir.iterdir():
-        test_img = Image.open(str(fn)).convert('L')
+    for fn in test_img_dir.iterdir():
+        test_img = Image.open(str(fn)).convert(conv_arg)
         test_imgs.append(to_tensor(test_img))
 
         count += 1
@@ -74,21 +113,24 @@ def get_dataloader(args):
     print(f'test_imgs size: {test_imgs.size()}')
     print('making dataloader...')
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
-    test_loader = DataLoader(test_raw, batch_size=batch_size, shuffle=True, num_workers=args.thread)
-    keras_loader = DataLoader(test_keras, batch_size=batch_size, shuffle=True, num_workers=args.thread)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=args.thread)
+    if args.color:
+        raw_loader = None
+    else:
+        raw_loader = DataLoader(test_raw, batch_size=batch_size, shuffle=True, num_workers=args.thread)
 
-    return class_len, train_loader, test_loader, keras_loader, iv_part_list, test_imgs
+    return class_len, train_loader, test_loader, raw_loader, class_part_list, test_imgs
 
 
 def main(args):
     print('making dataloader...')
-    class_len, train_loader, test_loader, keras_loader, iv_part_list, test_imgs = get_dataloader(args)
+    class_len, train_loader, test_loader, raw_loader, iv_part_list, test_imgs = get_dataloader(args)
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
     opt_weight = None
 
-    in_channels = 1
+    in_channels = 3 if args.color else 1
     if args.vgg:
         model = vgg11_bn(num_classes=class_len, in_channels=in_channels)
     elif args.old:
@@ -120,7 +162,7 @@ def main(args):
     trainer = Trainer(model_par, optimizer, save_dir=args.out_dir, test_imgs=test_imgs)
 
     print(f'start loop')
-    trainer.loop(args, args.epoch, train_loader, test_loader, keras_loader, scheduler, do_save=True)
+    trainer.loop(args, args.epoch, train_loader, test_loader, raw_loader, scheduler, do_save=True)
 
 
 def calc_meanstd(args):
@@ -161,6 +203,7 @@ if __name__ == '__main__':
     p.add_argument("--data_size", default=200000, type=int)
     p.add_argument("--resume_epoch", default=0, type=int)
     p.add_argument("--load_path", default="result.pth")
+    p.add_argument("--color", action="store_true")
     p.add_argument("--old", action="store_true")
     p.add_argument("--calc", action="store_true")
 

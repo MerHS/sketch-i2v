@@ -10,27 +10,28 @@ def pseudo_uniform(id, a, b):
 def real_uniform(id, a, b):
     return uniform(a, b)
 
-class MultiSketchDataset(Dataset):
-    def __init__(self, image_dir_path_list, file_id_list, iv_tag_list, 
-            override_len=0, transform=None, **kwargs):
+class MultiImageDataset(Dataset):
+    def __init__(self, image_dir_path_list, file_id_list, tag_list, 
+            override_len=0, transform=None, is_color=False, **kwargs):
         self.image_dir_path_list = image_dir_path_list
         self.file_id_list = file_id_list
-        self.iv_tag_list = iv_tag_list
+        self.tag_list = tag_list
         self.transform = transform
         self.data_len = len(file_id_list)
         self.override_len = override_len
+        self.conv_arg = 'RGB' if is_color else 'L'
 
     def __getitem__(self, index):
         file_id = self.file_id_list[index]
-        iv_tag_class = self.iv_tag_list[index]
+        tag_class = self.tag_list[index]
         img_dir_path = choice(self.image_dir_path_list)
 
-        sketch_path = img_dir_path / f"{file_id}.png"
-        sketch_img = Image.open(str(sketch_path)).convert('L')
+        img_path = img_dir_path / f"{file_id}.png"
+        img = Image.open(str(img_path)).convert(self.conv_arg)
         if self.transform is not None:
-            sketch_img = self.transform(sketch_img)
+            img = self.transform(img)
 
-        return (sketch_img, iv_tag_class)
+        return (img, tag_class)
 
     def __len__(self):
         if self.override_len > 0 and self.data_len > self.override_len:
