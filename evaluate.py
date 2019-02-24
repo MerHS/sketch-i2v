@@ -211,7 +211,7 @@ if __name__ == '__main__':
         file_path = str(save_path / (save_name + '-precision_tag.png'))    
         [pre_x, pre_y] = list(zip(*(precision_list[:100])))
         # TODO: make histogram
-        
+
         # recall per tag + recall > 10% count
         recall_list = []
         for i, rec in enumerate(rec_tag):
@@ -227,18 +227,18 @@ if __name__ == '__main__':
         file_path = str(save_path / (save_name + '-pr_all.png'))
 
         fig, ax = plt.subplots()
-        axes = plt.gca()
-        axes.set_ylim([0, 1.])
-        
+   
         x_val = list(range(1, len(precision_all)))
         ax.plot(x_val, precision_all, label='precision')
         ax.plot(x_val, recall_all, label='recall')
+
         legend = ax.legend(loc='upper right', shadow=True)
         # legend.get_frame().set_facecolor('C0')
-        ax.suptitle(f'Precision - Recall For All Classes ({save_name})' )
+        ax.set_ylim([0, 1.])
         ax.ylabel('Precision/Recall (All Classes)')
-        
-        plt.savefig(fig)
+
+        fig.title(f'Precision - Recall For All Classes ({save_name})' )
+        fig.savefig(file_path)
 
     # TODO: make mov
     # images = []
