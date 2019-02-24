@@ -204,6 +204,7 @@ if __name__ == '__main__':
         # precision per tag + precision >= 10% count
         precision_list = []
         precision_count = (pre_tag >= 0.1).sum()
+        pre_percentage = precision_count / len(pre_tag)
         for i, prec in enumerate(pre_tag):
             tag = tag_dict[tag_list[i]]
             precision_list.append((prec, tag))
@@ -215,6 +216,7 @@ if __name__ == '__main__':
         fig, ax = plt.subplots()
         ax.set_ylim([0, 1.])
         ax.bar(pre_x, pre_y)
+        ax.xlabel(f'Precision >= 10% : {pre_percentage}')
         ax.ylabel('Precision (Per Classes)')
         fig.title(f'Precision Per Classes ({save_name})' )
         fig.savefig(file_path)
@@ -222,6 +224,7 @@ if __name__ == '__main__':
         # recall per tag + recall >= 10% count
         recall_list = []
         recall_count = (rec_tag >= 0.1).sum()
+        rec_percentage = recall_count / len(rec_tag)
         for i, rec in enumerate(rec_tag):
             tag = tag_dict[tag_list[i]]
             recall_list.append((rec, tag))
@@ -233,6 +236,7 @@ if __name__ == '__main__':
         fig, ax = plt.subplots()
         ax.set_ylim([0, 1.])
         ax.bar(rec_x, rec_y)
+        ax.xlabel(f'Recall >= 10% : {rec_percentage}')
         ax.ylabel('Recall (Per Classes)')
         fig.title(f'Recall Per Classes ({save_name})' )
         fig.savefig(file_path)
