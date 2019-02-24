@@ -12,7 +12,8 @@ from torchvision.transforms import functional as tvF
 
 from model.se_resnet import se_resnext50
 from model.multi_se_resnext import multi_serx50
-from model.vgg import vgg11_bn
+from torchvision.models.vgg import vgg16_bn
+from torchvision.models.resnet import resnet50
 from model.datasets import MultiImageDataset, RawSketchDataset
 from utils import *
 from test import load_weight
@@ -132,7 +133,9 @@ def main(args):
 
     in_channels = 3 if args.color else 1
     if args.vgg:
-        model = vgg11_bn(num_classes=class_len, in_channels=in_channels)
+        model = vgg16_bn(num_classes=class_len)
+    elif args.resnet:
+        model = resnet50(num_classes=class_len)
     elif args.old:
         model = se_resnext50(num_classes=class_len, input_channels=in_channels)
     else:
@@ -191,6 +194,7 @@ if __name__ == '__main__':
     p.add_argument("--epoch", default=100, type=int)
     p.add_argument("--thread", default=8, type=int)
     p.add_argument("--vgg", action="store_true")
+    p.add_argument("--resnet", action="store_true")
     p.add_argument("--gpu", default=1, type=int)
     p.add_argument("--lr", default=0.2, type=float)
     p.add_argument("--lr_gamma", default=0.15, type=float)
