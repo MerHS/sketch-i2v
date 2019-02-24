@@ -106,8 +106,8 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
     recall_per_class = true_positive.float() / per_class_tag_count.float()
 
     correct_count = float(true_positive.sum())
-    precision_all = correct_count / estim_all.sum()
-    recall_all = correct_count / per_class_tag_count.sum()
+    precision_all = correct_count / float(estim_all.sum())
+    recall_all = correct_count / float(per_class_tag_count.sum())
 
     result = {
         'precision_per_class' : precision_per_class,
