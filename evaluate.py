@@ -1,4 +1,4 @@
-import pickle
+import pickle, math
 import os.path
 from pathlib import Path
 
@@ -207,11 +207,13 @@ if __name__ == '__main__':
         precision_count = (pre_tag >= 0.1).sum()
         pre_percentage = precision_count.item() / len(pre_tag)
         for i, prec in enumerate(pre_tag):
+            if math.isnan(prec):
+                prec = 0
             tag = tag_dict[tag_list[i]]
             precision_list.append((prec, tag))
         precision_list.sort(reverse=True)
 
-        file_path = str(save_path / (save_name + '-precision_class.png'))    
+        file_path = str(save_path / (f'precision_class-{save_name}.png'))    
         [pre_y, pre_x] = list(zip(*(precision_list[:40])))
         # print(len(pre_x), pre_y)
 
@@ -223,7 +225,7 @@ if __name__ == '__main__':
         plt.xlabel(f'Precision >= 10% : {pre_percentage*100:5.3f}%')
         plt.ylabel(f'Precision (Per Classes) threshold {args.threshold}')
         plt.title(f'Precision Per Classes ({save_name})' )
-        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.30)
 
         fig.savefig(file_path)
 
@@ -232,11 +234,13 @@ if __name__ == '__main__':
         recall_count = (rec_tag >= 0.1).sum()
         rec_percentage = recall_count.item() / len(rec_tag)
         for i, rec in enumerate(rec_tag):
+            if math.isnan(rec):
+                rec = 0
             tag = tag_dict[tag_list[i]]
             recall_list.append((rec, tag))
         recall_list.sort(reverse=True)
 
-        file_path = str(save_path / (save_name + '-recall_class.png'))
+        file_path = str(save_path / (f'recall_class-{save_name}.png'))
         [rec_y, rec_x] = list(zip(*(recall_list[:40])))
         # print(len(rec_x), rec_y)
 
@@ -248,7 +252,7 @@ if __name__ == '__main__':
         plt.xlabel(f'Recall >= 10% : {rec_percentage*100:5.3f}%')
         plt.ylabel(f'Recall (Per Classes) threshold {args.threshold}')
         plt.title(f'Recall Per Classes ({save_name})' )
-        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.30)
 
         fig.savefig(file_path)
 
