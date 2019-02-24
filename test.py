@@ -2,6 +2,7 @@ import argparse
 import pickle
 import torch
 import cv2
+import os.path
 
 from pathlib import Path
 from torch import nn
@@ -15,11 +16,58 @@ to_normalized_tensor = transforms.Compose([
     transforms.ToTensor(), 
     transforms.Normalize(mean=[0.9184], std=[0.1477])])
 
+DATA_DIRECTORY = "/SSD/hyunsu/dataset"
+
+data_dir = Path(DATA_DIRECTORY)
+
+IMAGE_DIRECTORY = data_dir / "rgb_test"
+TAG_FILE_PATH = data_dir / "tags.txt"
+
+print("TAG_FILE_PATH ", TAG_FILE_PATH)
+print("IMAGE_DIRECTORY ", IMAGE_DIRECTORY)
+
 def load_weight(model, pretrained_dict):
     model_dict = model.state_dict()
     pretrained_dict = {k[7:]: v for k, v in pretrained_dict.items() if k[7:] in model_dict}
     model_dict.update(pretrained_dict) 
     model.load_state_dict(pretrained_dict)
+
+def print_image_tags(tag_txt_path, img_dir_path, img_path, tag_dict_reverse, cvt_tag_list):
+
+    img_id = os.path.basename(img_path)
+    img_id = int(img_id[:-4])
+
+    with tag_txt_path.open('r') as f:
+        for line in f:
+            tag_list = list(map(int, line.split()))
+            file_id = tag_list[0]
+
+            if img_id == file_id:
+                tag_list = tag_list[1:]
+
+               
+
+                cvt_tags = []
+                ivt_tags = []
+                for tag_key in tag_list:
+                    try:
+                        if tag_key in cvt_tag_list:
+                            cvt_tags.append(tag_dict_reverse[tag_key])
+                        else:
+                            ivt_tags.append(tag_dict_reverse[tag_key])
+                    except:
+                        print("there is wrong tag ", tag_key)
+                
+                print("cvt original tags ", ' '.join(cvt_tags))
+                print("ivt original tags ", ' '.join(ivt_tags))
+
+
+                print("================")
+                break
+            else:
+                continue
+
+
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -41,7 +89,7 @@ if __name__ == '__main__':
         iv_tag_list = pkl['iv_tag_list']
         cv_tag_list = pkl['cv_tag_list']
         tag_dict = pkl['tag_dict']
-        tag_dict = {v: k for k, v in tag_dict.items()}
+        tag_dict_reverse = {v: k for k, v in tag_dict.items()}
 
     with open(args.train_file, 'rb') as f:
         network_weight = torch.load(f)['weight']
@@ -57,6 +105,10 @@ if __name__ == '__main__':
     network.eval()
 
     img = cv2.imread(args.file_name)
+
+    print(in_channels, args.color, len(tag_list))
+    print_image_tags(TAG_FILE_PATH, IMAGE_DIRECTORY, args.file_name, tag_dict_reverse, tag_list)
+
     img, _, _ = make_square(img, size=512, extend=(True, True))
     if args.show:
         cv2.imshow("main", img)
@@ -92,6 +144,7 @@ if __name__ == '__main__':
 
         props.sort(key=lambda x:x[1], reverse=True)
         for tag_key, prop in props:
-            print(tag_dict[tag_key], prop)
+            print(tag_dict_reverse[tag_key], prop)
         if args.show:
             cv2.waitKey(0)
+

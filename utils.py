@@ -4,7 +4,7 @@ import pickle
 
 import torch, torchvision
 from torch import nn
-from torch.functional import F
+from torch.nn import functional as F
 import numpy as np 
 from random import randint
 
@@ -15,6 +15,7 @@ class Trainer(object):
     torch.backends.cudnn.benchmark = True
     
     def __init__(self, model, optimizer, test_imgs, save_dir=None, save_freq=5):
+        self.args = None
         self.model = model
         
         self.optimizer = optimizer
@@ -38,7 +39,7 @@ class Trainer(object):
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
         accuracy = []
-
+        
         for img_tensor, data_class in tqdm(data_loader, ncols=80):
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
@@ -47,7 +48,9 @@ class Trainer(object):
                 self.optimizer.zero_grad()
 
             output = self.model(img_tensor)
-            
+            if self.args.vgg or self.args.resnet:
+                output = F.sigmoid(output)
+
             loss = self.loss_f(output, data_class)
             loop_loss.append(loss.data.item() / len(data_loader))
             top_1_index = output.data.max(1)[1].view(-1, 1)
@@ -93,6 +96,7 @@ class Trainer(object):
         return loss, (correct * 100), mask_tensor
 
     def loop(self, args, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
+        self.args = args
         arg_text = str(args)
         # self.vis.text(arg_text)
         for ep in range(args.resume_epoch + 1, epochs + 1):
