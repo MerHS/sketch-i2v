@@ -79,7 +79,6 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
         img_count = 0
         per_class_tag_count = torch.zeros(class_len).long()
         estim_all = torch.zeros(class_len).long()
-        tp_all = torch.zeros(class_len).long()
         
         true_positive = torch.zeros(class_len).long()
         
@@ -100,7 +99,6 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
 
             per_class_tag_count += data_class.sum(0)
             estim_all += estim_class.sum(0)
-            tp_all = true_positive.sum(0)
 
             img_count += data_class.shape[0]
         
@@ -177,7 +175,7 @@ if __name__ == '__main__':
         precision_all.append(result['precision_all'])
         recall_all.append(result['recall_all'])
     else: 
-        for epoch in range(1, 100):
+        for epoch in range(1, 101):
             model_path = Path(train_dir) / f'model_epoch_{epoch}.pth'
             if not model_path.exists():
                 break
@@ -207,7 +205,7 @@ if __name__ == '__main__':
         # precision per tag + precision >= 10% count
         precision_list = []
         precision_count = (pre_tag >= 0.1).sum()
-        pre_percentage = precision_count / len(pre_tag)
+        pre_percentage = precision_count.item() / len(pre_tag)
         for i, prec in enumerate(pre_tag):
             tag = tag_dict[tag_list[i]]
             precision_list.append((prec, tag))
@@ -215,20 +213,24 @@ if __name__ == '__main__':
 
         file_path = str(save_path / (save_name + '-precision_class.png'))    
         [pre_y, pre_x] = list(zip(*(precision_list[:40])))
-        
+        # print(len(pre_x), pre_y)
+
         fig, ax = plt.subplots()
-        plt.xticks(rotation=90)
+        plt.xticks(fontsize=7, rotation=90)
         ax.set_ylim([0, 1.])
         ax.bar(pre_x, pre_y)
-        plt.xlabel(f'Precision >= 10% : {pre_percentage}')
-        plt.ylabel('Precision (Per Classes)')
+        
+        plt.xlabel(f'Precision >= 10% : {pre_percentage*100:5.3f}%')
+        plt.ylabel(f'Precision (Per Classes) threshold {args.threshold}')
         plt.title(f'Precision Per Classes ({save_name})' )
+        plt.tight_layout()
+
         fig.savefig(file_path)
 
         # recall per tag + recall >= 10% count
         recall_list = []
         recall_count = (rec_tag >= 0.1).sum()
-        rec_percentage = recall_count / len(rec_tag)
+        rec_percentage = recall_count.item() / len(rec_tag)
         for i, rec in enumerate(rec_tag):
             tag = tag_dict[tag_list[i]]
             recall_list.append((rec, tag))
@@ -236,18 +238,24 @@ if __name__ == '__main__':
 
         file_path = str(save_path / (save_name + '-recall_class.png'))
         [rec_y, rec_x] = list(zip(*(recall_list[:40])))
+        # print(len(rec_x), rec_y)
 
         fig, ax = plt.subplots()
-        plt.xticks(rotation=90)
+        plt.xticks(fontsize=7, rotation=90)
         ax.set_ylim([0, 1.])
         ax.bar(rec_x, rec_y)
-        plt.xlabel(f'Recall >= 10% : {rec_percentage}')
-        plt.ylabel('Recall (Per Classes)')
+        
+        plt.xlabel(f'Recall >= 10% : {rec_percentage*100:5.3f}%')
+        plt.ylabel(f'Recall (Per Classes) threshold {args.threshold}')
         plt.title(f'Recall Per Classes ({save_name})' )
+        plt.tight_layout()
+
         fig.savefig(file_path)
 
         pre_all_list.append(pre_all)
         rec_all_list.append(rec_all)
+
+        plt.close('all')
 
     # precision / recall all
     file_path = str(save_path / 'precision_recall_all.png')
@@ -257,11 +265,12 @@ if __name__ == '__main__':
     x_val = list(range(1, len(pre_all_list) + 1))
     ax.plot(x_val, pre_all_list, label='precision')
     ax.plot(x_val, rec_all_list, label='recall')
+    print(pre_all_list, rec_all_list)
 
     legend = ax.legend(loc='upper right', shadow=True)
     # legend.get_frame().set_facecolor('C0')
     ax.set_ylim([0, 1.])
-    plt.ylabel('Precision/Recall (All Classes)')
+    plt.ylabel(f'Precision/Recall (All Classes) threshold {args.threshold}')
 
     plt.title(f'Precision - Recall For All Classes ({save_name})' )
     fig.savefig(file_path)
