@@ -1,7 +1,6 @@
-from pathlib import Path
-
 import pickle
 import os.path
+from pathlib import Path
 
 import torch
 import torch.optim as optim
@@ -13,11 +12,14 @@ from model.se_resnet import se_resnext50
 from model.vgg import vgg11_bn
 from model.datasets import MultiImageDataset
 from utils import *
-from PIL import Image
-from tqdm import tqdm
-
 from train import get_dataloader
 from test import load_weight
+
+import imageio
+from PIL import Image
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+
 
 DATA_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dataset')
 TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
@@ -129,7 +131,7 @@ if __name__ == '__main__':
     p.add_argument("--thread", default=8, type=int)
     p.add_argument("--vgg", action="store_true")
     p.add_argument("--gpu", default=1, type=int)
-    p.add_argument("--save", default="evaluate_result.txt")
+    p.add_argument("--save_path", default="evaluate")
     p.add_argument("--train_file", default="model.pth")
     p.add_argument("--train_dir", default="")
     p.add_argument("--data_dir", default=DATA_DIRECTORY)
@@ -190,6 +192,57 @@ if __name__ == '__main__':
             precision_all.append(result['precision_all'])
             recall_all.append(result['recall_all'])
 
-
+    save_path = Path(args.save_path)
+    if not save_path.exists():
+        save_path.mkdir()
     
+    for ep, (pre_tag, rec_tag, pre_all, rec_all) in \
+            enumerate(zip(precision_per_tag, recall_per_tag, precision_all, recall_all)):
+        epoch = ep + 1
+        save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
 
+        # precision per tag + precision > 10% count
+        precision_list = []
+        for i, prec in enumerate(pre_tag):
+            tag = tag_dict[tag_list[i]]
+            precision_list.append((prec, tag))
+        precision_list.sort(reverse=True)
+
+        file_path = str(save_path / (save_name + '-precision_tag.png'))    
+        [pre_x, pre_y] = list(zip(*(precision_list[:100])))
+        # TODO: make histogram
+        
+        # recall per tag + recall > 10% count
+        recall_list = []
+        for i, rec in enumerate(rec_tag):
+            tag = tag_dict[tag_list[i]]
+            recall_list.append((rec, tag))
+        recall_list.sort(reverse=True)
+
+        file_path = str(save_path / (save_name + '-recall_tag.png'))
+        [pre_x, pre_y] = list(zip(*(recall_list[:100])))
+        # TODO: make histogram
+
+        # precision / recall all
+        file_path = str(save_path / (save_name + '-pr_all.png'))
+
+        fig, ax = plt.subplots()
+        axes = plt.gca()
+        axes.set_ylim([0, 1.])
+        
+        x_val = list(range(1, len(precision_all)))
+        ax.plot(x_val, precision_all, label='precision')
+        ax.plot(x_val, recall_all, label='recall')
+        legend = ax.legend(loc='upper right', shadow=True)
+        # legend.get_frame().set_facecolor('C0')
+        ax.suptitle(f'Precision - Recall For All Classes ({save_name})' )
+        ax.ylabel('Precision/Recall (All Classes)')
+        
+        plt.savefig(fig)
+
+    # TODO: make mov
+    # images = []
+    # for e in range(num):
+    #     img_name = path + '_epoch%03d_G_f_' % (start_num+e+1) + '.png'
+    #     images.append(imageio.imread(img_name))
+    # imageio.mimsave(path + '_G_f_generate_animation.gif', images, fps=5)
