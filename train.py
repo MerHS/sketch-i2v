@@ -113,7 +113,7 @@ def get_dataloader(args):
     print(f'test_imgs size: {test_imgs.size()}')
     print('making dataloader...')
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=args.thread)
-    test_loader = DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=args.thread)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, num_workers=args.thread)
     if args.color:
         raw_loader = None
     else:
