@@ -201,8 +201,9 @@ if __name__ == '__main__':
         epoch = ep + 1
         save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
 
-        # precision per tag + precision > 10% count
+        # precision per tag + precision >= 10% count
         precision_list = []
+        precision_count = (pre_tag >= 0.1).sum()
         for i, prec in enumerate(pre_tag):
             tag = tag_dict[tag_list[i]]
             precision_list.append((prec, tag))
@@ -210,18 +211,31 @@ if __name__ == '__main__':
 
         file_path = str(save_path / (save_name + '-precision_tag.png'))    
         [pre_x, pre_y] = list(zip(*(precision_list[:100])))
-        # TODO: make histogram
+        
+        fig, ax = plt.subplots()
+        ax.set_ylim([0, 1.])
+        ax.bar(pre_x, pre_y)
+        ax.ylabel('Precision (Per Classes)')
+        fig.title(f'Precision Per Classes ({save_name})' )
+        fig.savefig(file_path)
 
-        # recall per tag + recall > 10% count
+        # recall per tag + recall >= 10% count
         recall_list = []
+        recall_count = (rec_tag >= 0.1).sum()
         for i, rec in enumerate(rec_tag):
             tag = tag_dict[tag_list[i]]
             recall_list.append((rec, tag))
         recall_list.sort(reverse=True)
 
         file_path = str(save_path / (save_name + '-recall_tag.png'))
-        [pre_x, pre_y] = list(zip(*(recall_list[:100])))
-        # TODO: make histogram
+        [rec_x, rec_y] = list(zip(*(recall_list[:100])))
+
+        fig, ax = plt.subplots()
+        ax.set_ylim([0, 1.])
+        ax.bar(rec_x, rec_y)
+        ax.ylabel('Recall (Per Classes)')
+        fig.title(f'Recall Per Classes ({save_name})' )
+        fig.savefig(file_path)
 
         # precision / recall all
         file_path = str(save_path / (save_name + '-pr_all.png'))
