@@ -98,6 +98,8 @@ class Trainer(object):
     def loop(self, args, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         self.args = args
         arg_text = str(args)
+        with self.log_path.open('a') as f:
+            f.write(arg_text + '\n')
         # self.vis.text(arg_text)
         for ep in range(args.resume_epoch + 1, epochs + 1):
             if scheduler is not None:

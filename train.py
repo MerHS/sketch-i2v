@@ -68,7 +68,7 @@ def get_dataloader(args):
         test_dir = data_dir / "keras_test"
         class_dict = iv_dict
         class_part_list = iv_part_list
-        data_augmentation += transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
+        data_augmentation.append(transforms.ColorJitter(brightness=0.05, contrast=0.2, saturation=0.2))
 
     test_raw_dir = data_dir / "liner_test"
     class_len = len(class_dict)
