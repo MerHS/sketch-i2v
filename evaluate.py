@@ -36,7 +36,7 @@ def get_dataset(args):
         test_dir = data_dir / "rgb_test"        
         class_dict = cv_dict
     else:
-        test_dir = data_dir / "keras_test"
+        test_dir = data_dir / "liner_test"
         class_dict = iv_dict
 
     class_len = len(class_dict)
@@ -155,13 +155,13 @@ if __name__ == '__main__':
     tag_list = cv_tag_list if args.color else iv_tag_list
     class_len = len(tag_list)
 
-    TEST_DIR_PATH = "F:\\새 폴더\\result_dir2"
-    train_dir = TEST_DIR_PATH # args.train_dir
+    # TEST_DIR_PATH = "F:\\새 폴더\\result_dir2"
+    train_dir = args.train_dir
     
     dataset = get_dataset(args)
 
-    precision_per_tag = list()
-    recall_per_tag = list()
+    precision_per_class = list()
+    recall_per_class = list()
     precision_all = list()
     recall_all = list()
 
@@ -172,8 +172,8 @@ if __name__ == '__main__':
 
         result = calculate(args, network, data_loader, tag_list, tag_dict)
         
-        precision_per_tag.append(result['precision_per_class'])
-        recall_per_tag.append(result['recall_per_tag'])
+        precision_per_class.append(result['recall_per_class'])
+        recall_per_class.append(result['recall_per_class'])
         precision_all.append(result['precision_all'])
         recall_all.append(result['recall_all'])
     else: 
@@ -187,8 +187,8 @@ if __name__ == '__main__':
 
             result = calculate(args, network, data_loader, tag_list, tag_dict)
 
-            precision_per_tag.append(result['precision_per_class'])
-            recall_per_tag.append(result['recall_per_tag'])
+            precision_per_class.append(result['precision_per_class'])
+            recall_per_class.append(result['recall_per_class'])
             precision_all.append(result['precision_all'])
             recall_all.append(result['recall_all'])
 
@@ -196,8 +196,11 @@ if __name__ == '__main__':
     if not save_path.exists():
         save_path.mkdir()
     
+    pre_all_list = list()
+    rec_all_list = list()
+
     for ep, (pre_tag, rec_tag, pre_all, rec_all) in \
-            enumerate(zip(precision_per_tag, recall_per_tag, precision_all, recall_all)):
+            enumerate(zip(precision_per_class, recall_per_class, precision_all, recall_all)):
         epoch = ep + 1
         save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
 
@@ -210,15 +213,16 @@ if __name__ == '__main__':
             precision_list.append((prec, tag))
         precision_list.sort(reverse=True)
 
-        file_path = str(save_path / (save_name + '-precision_tag.png'))    
-        [pre_x, pre_y] = list(zip(*(precision_list[:100])))
+        file_path = str(save_path / (save_name + '-precision_class.png'))    
+        [pre_y, pre_x] = list(zip(*(precision_list[:40])))
         
         fig, ax = plt.subplots()
+        plt.xticks(rotation=90)
         ax.set_ylim([0, 1.])
         ax.bar(pre_x, pre_y)
-        ax.xlabel(f'Precision >= 10% : {pre_percentage}')
-        ax.ylabel('Precision (Per Classes)')
-        fig.title(f'Precision Per Classes ({save_name})' )
+        plt.xlabel(f'Precision >= 10% : {pre_percentage}')
+        plt.ylabel('Precision (Per Classes)')
+        plt.title(f'Precision Per Classes ({save_name})' )
         fig.savefig(file_path)
 
         # recall per tag + recall >= 10% count
@@ -230,33 +234,37 @@ if __name__ == '__main__':
             recall_list.append((rec, tag))
         recall_list.sort(reverse=True)
 
-        file_path = str(save_path / (save_name + '-recall_tag.png'))
-        [rec_x, rec_y] = list(zip(*(recall_list[:100])))
+        file_path = str(save_path / (save_name + '-recall_class.png'))
+        [rec_y, rec_x] = list(zip(*(recall_list[:40])))
 
         fig, ax = plt.subplots()
+        plt.xticks(rotation=90)
         ax.set_ylim([0, 1.])
         ax.bar(rec_x, rec_y)
-        ax.xlabel(f'Recall >= 10% : {rec_percentage}')
-        ax.ylabel('Recall (Per Classes)')
-        fig.title(f'Recall Per Classes ({save_name})' )
+        plt.xlabel(f'Recall >= 10% : {rec_percentage}')
+        plt.ylabel('Recall (Per Classes)')
+        plt.title(f'Recall Per Classes ({save_name})' )
         fig.savefig(file_path)
 
-        # precision / recall all
-        file_path = str(save_path / (save_name + '-pr_all.png'))
+        pre_all_list.append(pre_all)
+        rec_all_list.append(rec_all)
 
-        fig, ax = plt.subplots()
-   
-        x_val = list(range(1, len(precision_all)))
-        ax.plot(x_val, precision_all, label='precision')
-        ax.plot(x_val, recall_all, label='recall')
+    # precision / recall all
+    file_path = str(save_path / 'precision_recall_all.png')
 
-        legend = ax.legend(loc='upper right', shadow=True)
-        # legend.get_frame().set_facecolor('C0')
-        ax.set_ylim([0, 1.])
-        ax.ylabel('Precision/Recall (All Classes)')
+    fig, ax = plt.subplots()
 
-        fig.title(f'Precision - Recall For All Classes ({save_name})' )
-        fig.savefig(file_path)
+    x_val = list(range(1, len(pre_all_list) + 1))
+    ax.plot(x_val, pre_all_list, label='precision')
+    ax.plot(x_val, rec_all_list, label='recall')
+
+    legend = ax.legend(loc='upper right', shadow=True)
+    # legend.get_frame().set_facecolor('C0')
+    ax.set_ylim([0, 1.])
+    plt.ylabel('Precision/Recall (All Classes)')
+
+    plt.title(f'Precision - Recall For All Classes ({save_name})' )
+    fig.savefig(file_path)
 
     # TODO: make mov
     # images = []
