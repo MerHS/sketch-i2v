@@ -107,6 +107,7 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
         
     precision_per_class = true_positive.float() / estim_all.float()
     recall_per_class = true_positive.float() / per_class_tag_count.float()
+    f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class)
 
     correct_count = float(true_positive.sum())
     precision_all = correct_count / float(estim_all.sum())
@@ -115,6 +116,7 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
     result = {
         'precision_per_class' : precision_per_class,
         'recall_per_class': recall_per_class,
+        'f1_per_class': f1_per_class,
         'precision_all' : precision_all,
         'recall_all': recall_all,
         'per_class_tag_count': per_class_tag_count,
@@ -165,6 +167,7 @@ if __name__ == '__main__':
 
     precision_per_class = list()
     recall_per_class = list()
+    f1_per_class = list()
     precision_all = list()
     recall_all = list()
 
@@ -177,6 +180,7 @@ if __name__ == '__main__':
         
         precision_per_class.append(result['recall_per_class'])
         recall_per_class.append(result['recall_per_class'])
+        f1_per_class.append(result['f1_per_class'])
         precision_all.append(result['precision_all'])
         recall_all.append(result['recall_all'])
     else: 
@@ -192,6 +196,7 @@ if __name__ == '__main__':
 
             precision_per_class.append(result['precision_per_class'])
             recall_per_class.append(result['recall_per_class'])
+            f1_per_class.append(result['f1_per_class'])
             precision_all.append(result['precision_all'])
             recall_all.append(result['recall_all'])
 
@@ -203,10 +208,11 @@ if __name__ == '__main__':
     rec_all_list = list()
     pre_avg_list = list()
     rec_avg_list = list()
+    f1_avg_list = list()
     topn = args.topn
     
-    for ep, (pre_tag, rec_tag, pre_all, rec_all) in \
-            enumerate(zip(precision_per_class, recall_per_class, precision_all, recall_all)):
+    for ep, (pre_tag, rec_tag, f1_tag, pre_all, rec_all) in \
+            enumerate(zip(precision_per_class, recall_per_class, f1_per_class, precision_all, recall_all)):
         epoch = ep + 1
         save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
 
@@ -250,7 +256,6 @@ if __name__ == '__main__':
 
         file_path = str(save_path / (f'recall_class-{save_name}.png'))
         [rec_y, rec_x] = list(zip(*(recall_list)))
-        # print(len(rec_x), rec_y)
 
         fig, ax = plt.subplots()
         plt.xticks(fontsize=7, rotation=90)
@@ -264,11 +269,37 @@ if __name__ == '__main__':
 
         fig.savefig(file_path)
 
+        # f1 per tag + f1 >= 10% count
+        f1_list = []
+        f1_count = (f1_tag >= 0.1).sum()
+        f1_percentage = f1_count.item() / len(f1_tag)
+        for i, f1 in enumerate(f1_tag):
+            if math.isnan(f1):
+                f1 = 0
+            tag = tag_dict[tag_list[i]]
+            f1_list.append((f1, tag))
+        f1_list.sort(reverse=True)
+
+        file_path = str(save_path / (f'f1_class-{save_name}.png'))
+        [f1_y, f1_x] = list(zip(*(f1_list)))
+
+        fig, ax = plt.subplots()
+        plt.xticks(fontsize=7, rotation=90)
+        ax.set_ylim([0, 1.])
+        ax.bar(f1_x[:topn], f1_y[:topn])
+        
+        plt.xlabel(f'F1 >= 10% : {f1_percentage*100:5.3f}%')
+        plt.ylabel(f'F1 (Per Classes) threshold {args.threshold}')
+        plt.title(f'F1 Per Classes ({save_name})' )
+        plt.subplots_adjust(bottom=0.30)
+
+        fig.savefig(file_path)
+
         pre_all_list.append(pre_all)
         rec_all_list.append(rec_all)
         pre_avg_list.append(sum(pre_y) / len(pre_y))
         rec_avg_list.append(sum(rec_y) / len(rec_y))
-
+        f1_avg_list.append(sum(f1_y) / len(f1_y))
         plt.close('all')
 
     # precision / recall all
@@ -288,20 +319,21 @@ if __name__ == '__main__':
     fig.savefig(file_path)
 
 
-    # precision / recall avg
-    file_path = str(save_path / 'precision_recall_avg.png')
+    # precision / recall / f1 avg
+    file_path = str(save_path / 'precision_recall_f1_avg.png')
 
     fig, ax = plt.subplots()
 
     x_val = list(range(1, len(pre_all_list) + 1))
-    ax.plot(x_val, pre_avg_list, label='precision')
-    ax.plot(x_val, rec_avg_list, label='recall')
+    ax.plot(x_val, pre_avg_list, label='Precision')
+    ax.plot(x_val, rec_avg_list, label='Recall')
+    ax.plot(x_val, f1_avg_list, label='F1')
 
     legend = ax.legend(loc='upper right', shadow=True)
     ax.set_ylim([0, 1.])
-    plt.ylabel(f'Precision/Recall (All Classes) threshold {args.threshold}')
+    plt.ylabel(f'Precision/Recall/F1 (All Classes) threshold {args.threshold}')
 
-    plt.title(f'Precision - Recall Average' )
+    plt.title(f'Precision - Recall - F1 Average' )
     fig.savefig(file_path)
 
     # TODO: make mov
