@@ -127,6 +127,73 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
 
     return result
 
+def save_to_image(epoch, pre_tag, rec_tag, pre_all, rec_all):
+
+    pre_all_list = list()
+    rec_all_list = list()
+
+    save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
+
+    # precision per tag + precision >= 10% count
+    precision_list = []
+    precision_count = (pre_tag >= 0.1).sum()
+    pre_percentage = precision_count.item() / len(pre_tag)
+    for i, prec in enumerate(pre_tag):
+        if math.isnan(prec):
+            prec = 0
+        tag = tag_dict[tag_list[i]]
+        precision_list.append((prec, tag))
+    precision_list.sort(reverse=True)
+
+    file_path = str(save_path / (f'precision_class-{save_name}.png'))    
+    [pre_y, pre_x] = list(zip(*(precision_list[:40])))
+    # print(len(pre_x), pre_y)
+
+    fig, ax = plt.subplots()
+    plt.xticks(fontsize=7, rotation=90)
+    ax.set_ylim([0, 1.])
+    ax.bar(pre_x, pre_y)
+    
+    plt.xlabel(f'Precision >= 10% : {pre_percentage*100:5.3f}%')
+    plt.ylabel(f'Precision (Per Classes) threshold {args.threshold}')
+    plt.title(f'Precision Per Classes ({save_name})' )
+    plt.subplots_adjust(bottom=0.30)
+
+    fig.savefig(file_path)
+
+    # recall per tag + recall >= 10% count
+    recall_list = []
+    recall_count = (rec_tag >= 0.1).sum()
+    rec_percentage = recall_count.item() / len(rec_tag)
+    for i, rec in enumerate(rec_tag):
+        if math.isnan(rec):
+            rec = 0
+        tag = tag_dict[tag_list[i]]
+        recall_list.append((rec, tag))
+    recall_list.sort(reverse=True)
+
+    file_path = str(save_path / (f'recall_class-{save_name}.png'))
+    [rec_y, rec_x] = list(zip(*(recall_list[:40])))
+    # print(len(rec_x), rec_y)
+
+    fig, ax = plt.subplots()
+    plt.xticks(fontsize=7, rotation=90)
+    ax.set_ylim([0, 1.])
+    ax.bar(rec_x, rec_y)
+    
+    plt.xlabel(f'Recall >= 10% : {rec_percentage*100:5.3f}%')
+    plt.ylabel(f'Recall (Per Classes) threshold {args.threshold}')
+    plt.title(f'Recall Per Classes ({save_name})' )
+    plt.subplots_adjust(bottom=0.30)
+
+    fig.savefig(file_path)
+
+    pre_all_list.append(pre_all)
+    rec_all_list.append(rec_all)
+
+    plt.close('all')
+
+    return pre_all_list, rec_all_list
 if __name__ == '__main__':
     import argparse
 
@@ -164,10 +231,11 @@ if __name__ == '__main__':
     
     dataset = get_dataset(args)
 
-    precision_per_class = list()
-    recall_per_class = list()
-    precision_all = list()
-    recall_all = list()
+    save_path = Path(args.save_path)
+    if not save_path.exists():
+        save_path.mkdir()
+
+    pre_all_list, rec_all_list = None, None
 
     if train_dir == "":
         model_path = args.train_file    
@@ -176,10 +244,8 @@ if __name__ == '__main__':
 
         result = calculate(args, network, data_loader, tag_list, tag_dict)
         
-        precision_per_class.append(result['recall_per_class'])
-        recall_per_class.append(result['recall_per_class'])
-        precision_all.append(result['precision_all'])
-        recall_all.append(result['recall_all'])
+        pre_tag, rec_tag, pre_all, rec_all = result['precision_per_class'], result['recall_per_class'], result['precision_all'], result['recall_all']
+        pre_all_list, rec_all_list = save_to_image(None, pre_tag, rec_tag, pre_all, rec_all)
     else: 
         for epoch in range(1, 101):
             model_path = Path(train_dir) / f'model_epoch_{epoch}.pth'
@@ -191,81 +257,9 @@ if __name__ == '__main__':
 
             result = calculate(args, network, data_loader, tag_list, tag_dict)
 
-            precision_per_class.append(result['precision_per_class'])
-            recall_per_class.append(result['recall_per_class'])
-            precision_all.append(result['precision_all'])
-            recall_all.append(result['recall_all'])
+            pre_tag, rec_tag, pre_all, rec_all = result['precision_per_class'], result['recall_per_class'], result['precision_all'], result['recall_all']
+            pre_all_list, rec_all_list = save_to_image(epoch, pre_tag, rec_tag, pre_all, rec_all)
 
-    save_path = Path(args.save_path)
-    if not save_path.exists():
-        save_path.mkdir()
-    
-    pre_all_list = list()
-    rec_all_list = list()
-
-    for ep, (pre_tag, rec_tag, pre_all, rec_all) in \
-            enumerate(zip(precision_per_class, recall_per_class, precision_all, recall_all)):
-        epoch = ep + 1
-        save_name = Path(args.train_file).stem if train_dir == '' else f'{epoch:02d}_epoch'
-
-        # precision per tag + precision >= 10% count
-        precision_list = []
-        precision_count = (pre_tag >= 0.1).sum()
-        pre_percentage = precision_count.item() / len(pre_tag)
-        for i, prec in enumerate(pre_tag):
-            if math.isnan(prec):
-                prec = 0
-            tag = tag_dict[tag_list[i]]
-            precision_list.append((prec, tag))
-        precision_list.sort(reverse=True)
-
-        file_path = str(save_path / (f'precision_class-{save_name}.png'))    
-        [pre_y, pre_x] = list(zip(*(precision_list[:40])))
-        # print(len(pre_x), pre_y)
-
-        fig, ax = plt.subplots()
-        plt.xticks(fontsize=7, rotation=90)
-        ax.set_ylim([0, 1.])
-        ax.bar(pre_x, pre_y)
-        
-        plt.xlabel(f'Precision >= 10% : {pre_percentage*100:5.3f}%')
-        plt.ylabel(f'Precision (Per Classes) threshold {args.threshold}')
-        plt.title(f'Precision Per Classes ({save_name})' )
-        plt.subplots_adjust(bottom=0.30)
-
-        fig.savefig(file_path)
-
-        # recall per tag + recall >= 10% count
-        recall_list = []
-        recall_count = (rec_tag >= 0.1).sum()
-        rec_percentage = recall_count.item() / len(rec_tag)
-        for i, rec in enumerate(rec_tag):
-            if math.isnan(rec):
-                rec = 0
-            tag = tag_dict[tag_list[i]]
-            recall_list.append((rec, tag))
-        recall_list.sort(reverse=True)
-
-        file_path = str(save_path / (f'recall_class-{save_name}.png'))
-        [rec_y, rec_x] = list(zip(*(recall_list[:40])))
-        # print(len(rec_x), rec_y)
-
-        fig, ax = plt.subplots()
-        plt.xticks(fontsize=7, rotation=90)
-        ax.set_ylim([0, 1.])
-        ax.bar(rec_x, rec_y)
-        
-        plt.xlabel(f'Recall >= 10% : {rec_percentage*100:5.3f}%')
-        plt.ylabel(f'Recall (Per Classes) threshold {args.threshold}')
-        plt.title(f'Recall Per Classes ({save_name})' )
-        plt.subplots_adjust(bottom=0.30)
-
-        fig.savefig(file_path)
-
-        pre_all_list.append(pre_all)
-        rec_all_list.append(rec_all)
-
-        plt.close('all')
 
     # precision / recall all
     file_path = str(save_path / 'precision_recall_all.png')
@@ -282,7 +276,7 @@ if __name__ == '__main__':
     ax.set_ylim([0, 1.])
     plt.ylabel(f'Precision/Recall (All Classes) threshold {args.threshold}')
 
-    plt.title(f'Precision - Recall For All Classes ({save_name})' )
+    plt.title(f'Precision - Recall For All Classes' )
     fig.savefig(file_path)
 
     # TODO: make mov
