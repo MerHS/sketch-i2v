@@ -67,6 +67,9 @@ def get_network(args, model_path, class_len):
 
     if args.gpu > 0:
         network = network.cuda()
+        gpus = list(range(torch.cuda.device_count()))
+        gpus = gpus[:args.gpu]
+        network = nn.DataParallel(network, device_ids=gpus)
 
     network.eval()
     return network
@@ -136,6 +139,8 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--color", action="store_true")
     p.add_argument("--threshold", default=0.2, type=float)
+    p.add_argument("--topn", default=40, type=int)
+    p.add_argument("--epoch", default=[1, 100], type=int, nargs='+')
     
     # do not change it 
     p.add_argument("--data_size", default=1, type=int)
@@ -175,7 +180,7 @@ if __name__ == '__main__':
         precision_all.append(result['precision_all'])
         recall_all.append(result['recall_all'])
     else: 
-        for epoch in range(1, 101):
+        for epoch in range(*args.epoch):
             model_path = Path(train_dir) / f'model_epoch_{epoch}.pth'
             if not model_path.exists():
                 break
@@ -196,7 +201,10 @@ if __name__ == '__main__':
     
     pre_all_list = list()
     rec_all_list = list()
-
+    pre_avg_list = list()
+    rec_avg_list = list()
+    topn = args.topn
+    
     for ep, (pre_tag, rec_tag, pre_all, rec_all) in \
             enumerate(zip(precision_per_class, recall_per_class, precision_all, recall_all)):
         epoch = ep + 1
@@ -214,13 +222,13 @@ if __name__ == '__main__':
         precision_list.sort(reverse=True)
 
         file_path = str(save_path / (f'precision_class-{save_name}.png'))    
-        [pre_y, pre_x] = list(zip(*(precision_list[:40])))
+        [pre_y, pre_x] = list(zip(*(precision_list)))
         # print(len(pre_x), pre_y)
 
         fig, ax = plt.subplots()
         plt.xticks(fontsize=7, rotation=90)
         ax.set_ylim([0, 1.])
-        ax.bar(pre_x, pre_y)
+        ax.bar(pre_x[:topn], pre_y[:topn])
         
         plt.xlabel(f'Precision >= 10% : {pre_percentage*100:5.3f}%')
         plt.ylabel(f'Precision (Per Classes) threshold {args.threshold}')
@@ -241,13 +249,13 @@ if __name__ == '__main__':
         recall_list.sort(reverse=True)
 
         file_path = str(save_path / (f'recall_class-{save_name}.png'))
-        [rec_y, rec_x] = list(zip(*(recall_list[:40])))
+        [rec_y, rec_x] = list(zip(*(recall_list)))
         # print(len(rec_x), rec_y)
 
         fig, ax = plt.subplots()
         plt.xticks(fontsize=7, rotation=90)
         ax.set_ylim([0, 1.])
-        ax.bar(rec_x, rec_y)
+        ax.bar(rec_x[:topn], rec_y[:topn])
         
         plt.xlabel(f'Recall >= 10% : {rec_percentage*100:5.3f}%')
         plt.ylabel(f'Recall (Per Classes) threshold {args.threshold}')
@@ -258,6 +266,8 @@ if __name__ == '__main__':
 
         pre_all_list.append(pre_all)
         rec_all_list.append(rec_all)
+        pre_avg_list.append(sum(pre_y) / len(pre_y))
+        rec_avg_list.append(sum(rec_y) / len(rec_y))
 
         plt.close('all')
 
@@ -269,14 +279,29 @@ if __name__ == '__main__':
     x_val = list(range(1, len(pre_all_list) + 1))
     ax.plot(x_val, pre_all_list, label='precision')
     ax.plot(x_val, rec_all_list, label='recall')
-    print(pre_all_list, rec_all_list)
 
     legend = ax.legend(loc='upper right', shadow=True)
-    # legend.get_frame().set_facecolor('C0')
     ax.set_ylim([0, 1.])
     plt.ylabel(f'Precision/Recall (All Classes) threshold {args.threshold}')
 
-    plt.title(f'Precision - Recall For All Classes ({save_name})' )
+    plt.title(f'Precision - Recall For All Classes' )
+    fig.savefig(file_path)
+
+
+    # precision / recall avg
+    file_path = str(save_path / 'precision_recall_avg.png')
+
+    fig, ax = plt.subplots()
+
+    x_val = list(range(1, len(pre_all_list) + 1))
+    ax.plot(x_val, pre_avg_list, label='precision')
+    ax.plot(x_val, rec_avg_list, label='recall')
+
+    legend = ax.legend(loc='upper right', shadow=True)
+    ax.set_ylim([0, 1.])
+    plt.ylabel(f'Precision/Recall (All Classes) threshold {args.threshold}')
+
+    plt.title(f'Precision - Recall Average' )
     fig.savefig(file_path)
 
     # TODO: make mov
