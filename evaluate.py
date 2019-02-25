@@ -209,6 +209,7 @@ if __name__ == '__main__':
     p.add_argument("--tag_dump", default=TAG_FILE_PATH)
     p.add_argument("--color", action="store_true")
     p.add_argument("--threshold", default=0.2, type=float)
+    p.add_argument("--epoch", default=1, type=int)
     
     # do not change it 
     p.add_argument("--data_size", default=1, type=int)
@@ -247,7 +248,9 @@ if __name__ == '__main__':
         pre_tag, rec_tag, pre_all, rec_all = result['precision_per_class'], result['recall_per_class'], result['precision_all'], result['recall_all']
         pre_all_list, rec_all_list = save_to_image(None, pre_tag, rec_tag, pre_all, rec_all)
     else: 
-        for epoch in range(1, 101):
+
+        epoch_start = args.epoch
+        for epoch in range(epoch_start, 101):
             model_path = Path(train_dir) / f'model_epoch_{epoch}.pth'
             if not model_path.exists():
                 break
