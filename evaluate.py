@@ -65,7 +65,13 @@ def get_network(args, model_path, class_len):
     
     load_weight(network, network_weight)
 
+
+    
     if args.gpu > 0:
+        gpu_count = args.gpu if args.gpu > 0 else 1
+        gpus = list(range(torch.cuda.device_count()))
+        gpus = gpus[:gpu_count]
+        network = nn.DataParallel(network, device_ids=gpus)
         network = network.cuda()
 
     network.eval()
