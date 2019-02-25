@@ -23,9 +23,9 @@ data_dir = Path(DATA_DIRECTORY)
 IMAGE_DIRECTORY = data_dir / "rgb_test"
 TAG_FILE_PATH = data_dir / "tags.txt"
 
-def load_weight(model, pretrained_dict):
+def load_weight(model, pretrained_dict, prefix_len=7):
     model_dict = model.state_dict()
-    pretrained_dict = {k[7:]: v for k, v in pretrained_dict.items() if k[7:] in model_dict}
+    pretrained_dict = {k[prefix_len:]: v for k, v in pretrained_dict.items() if k[prefix_len:] in model_dict}
     model_dict.update(pretrained_dict) 
     model.load_state_dict(pretrained_dict)
 
