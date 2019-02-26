@@ -107,6 +107,9 @@ def calculate(args, network, data_loader, tag_list, tag_dict):
         
     precision_per_class = true_positive.float() / estim_all.float()
     recall_per_class = true_positive.float() / per_class_tag_count.float()
+    precision_per_class[torch.isnan(precision_per_class)] = 0
+    recall_per_class[torch.isnan(recall_per_class)] = 0
+
     f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class)
 
     correct_count = float(true_positive.sum())

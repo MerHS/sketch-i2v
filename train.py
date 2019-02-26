@@ -162,10 +162,10 @@ def main(args):
     
     print(f'training params: {args}')
     print('setting trainer...')
-    trainer = Trainer(model_par, optimizer, save_dir=args.out_dir, test_imgs=test_imgs)
+    trainer = Trainer(args, model_par, optimizer, class_part_list, save_dir=args.out_dir, test_imgs=test_imgs)
 
     print(f'start loop')
-    trainer.loop(args, args.epoch, train_loader, test_loader, raw_loader, scheduler, do_save=True)
+    trainer.loop(args.epoch, train_loader, test_loader, raw_loader, scheduler, do_save=True)
 
 
 def calc_meanstd(args):
@@ -210,6 +210,7 @@ if __name__ == '__main__':
     p.add_argument("--color", action="store_true")
     p.add_argument("--old", action="store_false")
     p.add_argument("--calc", action="store_true")
+    p.add_argument("--eval_threshold", default=0.2, type=float)
 
     args = p.parse_args()
     print(args)
