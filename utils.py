@@ -7,6 +7,7 @@ from torch import nn
 from torch.nn import functional as F
 import numpy as np 
 from random import randint
+from itertools import accumulate
 
 from tqdm import tqdm
 
@@ -14,7 +15,7 @@ class Trainer(object):
     cuda = torch.cuda.is_available()
     torch.backends.cudnn.benchmark = True
     
-    def __init__(self, args, model, optimizer, class_part_list, test_imgs, save_dir=None, save_freq=5):
+    def __init__(self, args, model, optimizer, class_part_list, save_dir=None):
         self.args = args
         self.model = model
         self.threshold = args.eval_threshold
@@ -26,15 +27,13 @@ class Trainer(object):
         if not self.save_dir.exists():
             self.save_dir.mkdir()
         self.log_path = Path(save_dir) / 'loss_log.txt'
-        self.save_freq = save_freq
-
-        self.test_imgs = test_imgs
+        
         self.epoch = 0
         self.loss_f = nn.BCELoss()
 
         if self.cuda:
-            self.model = model.cuda()
-            self.test_imgs = self.test_imgs.cuda()
+            if model:
+                self.model = model.cuda()
             self.loss_f = self.loss_f.cuda()
 
         # assert self.vis.check_connection(), 'No connection could be formed quickly'
@@ -42,7 +41,7 @@ class Trainer(object):
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
         accuracy = []
-        f1 = []
+        data_len = len(data_loader.dataset)
 
         estim_all = torch.zeros(self.class_len).long()
         per_class_tag_count = torch.zeros(self.class_len).long()
@@ -81,9 +80,11 @@ class Trainer(object):
                 estim_all += estim_class.sum(0)
 
         mode = "train" if is_train else "test"
-        
+        self.print_evaluation(mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive)
+
+    def print_evaluation(self, mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive):
         loss_value = sum(loop_loss)
-        accuracy_value = sum(accuracy) / len(data_loader.dataset)
+        accuracy_value = sum(accuracy) / data_len
         loss_txt = f">>>[{mode} {self.epoch}] loss: {loss_value:.10f} / top-1 accuracy: {accuracy_value:.2%}"
         print(loss_txt)
         
@@ -110,7 +111,7 @@ class Trainer(object):
         avg = f1_per_class.mean()
         per10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class)) 
         f1_txt =  f"  f1     per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
-        print(f1_txt)
+        print(f1_txt + '\n')
         
         with self.log_path.open('a') as f:
             f.write(loss_txt + '\n')
@@ -123,21 +124,10 @@ class Trainer(object):
         with torch.enable_grad():
             self._iteration(data_loader)
 
-    def test(self, data_loader, get_mask=False):
+    def test(self, data_loader):
         self.model.eval()
         with torch.no_grad():
             self._iteration(data_loader, is_train=False)
-            if get_mask:
-                test_tensor = self.test_imgs.clone()
-                mask = self.model.module.get_mask(test_tensor)
-                mask = nn.functional.interpolate(mask, scale_factor=8)
-                mask_tensor = torch.cat([self.test_imgs, mask], 1)
-                b, c, h, w = mask_tensor.size()
-                mask_tensor = mask_tensor.view(b*c, 1, h, w)
-            else:
-                mask_tensor = None
-
-        return mask_tensor
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         with self.log_path.open('a') as f:
@@ -150,14 +140,14 @@ class Trainer(object):
             self.epoch = ep
 
             self.train(train_data)
-            mask_tensor = self.test(test_data, get_mask=(not self.args.old))
+            self.test(test_data)
             if not self.args.color:
-                self.test(raw_data, get_mask=False)
+                self.test(raw_data)
 
             if do_save:
-                self.save(ep, mask_tensor)
+                self.save(ep)
 
-    def save(self, epoch, mask_tensor=None, **kwargs):
+    def save(self, epoch, **kwargs):
         if self.save_dir is not None:
             model_out_path = self.save_dir
             state = {
@@ -169,10 +159,138 @@ class Trainer(object):
                 model_out_path.mkdir()
             torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
 
-            if mask_tensor is not None:
-                torchvision.utils.save_image(mask_tensor, model_out_path / f"mask_epoch_{epoch}.png",
-                    nrow=7, padding=0)
 
+class GanTrainer(Trainer):
+    def __init__(self, args, models, opts, class_part_list, test_imgs, save_dir=None):
+        super(GanTrainer, self).__init__(args, None, None, class_part_list, save_dir)
+        self.g_model, self.d_model = models
+        self.g_opt, self.d_opt = opts
+        self.test_imgs = test_imgs
+        self.clen_list = list(map(lambda x: len(x[1]), class_part_list))
+        self.clen_list.insert(0, 0)
+        self.clen_list = np.array(accumulate(self.clen_list))
+
+        if self.cuda:
+            self.g_model = self.g_model.cuda()
+            self.d_model = self.d_model.cuda()
+            self.test_imgs = test_imgs
+
+    def _iteration(self, data_loader, is_train=True):
+        loop_loss = []
+        accuracy = []
+        data_len = len(data_loader.dataset)
+
+        estim_all = torch.zeros(self.class_len).long()
+        per_class_tag_count = torch.zeros(self.class_len).long()
+        true_positive = torch.zeros(self.class_len).long()
+        if self.cuda:
+            estim_all, per_class_tag_count, true_positive = \
+                estim_all.cuda(), per_class_tag_count.cuda(), true_positive.cuda()
+
+        # train
+        for img_tensor, data_class in tqdm(data_loader, ncols=80):
+            img_len = img_tensor.shape[0]
+            b_ind = np.array(range(img_len))
+            y_real_, y_fake_ = torch.ones(img_len, 1), torch.zeros(img_len, 1)
+            if self.cuda:
+                img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
+                y_real_, y_fake_ = y_real_.cuda(), y_fake_.cuda()
+
+            if is_train:
+                # G
+                mask_ind = list(map(lambda x: randint(0, 3), range(img_len)))
+                mask_ind = np.array(mask_ind)
+
+                print(img_tensor.max())
+                
+                self.g_opt.zero_grad()
+                mask = self.g_model(img_tensor)[b_ind, mask_ind, :, :]
+                fake_image = 1 - (1 - img_tensor) * (1 - mask)
+
+                # TODO: for loop mask 0
+                cmask_from, cmask_to = self.clen_list[mask_ind], self.clen_list[mask_ind+1]
+                fake_class = data_class.clone()
+                if self.cuda:
+                    mask = mask.cuda()
+                    fake_class = fake_class.cuda()
+                fake_class[:, cmask_from:cmask_to] = 0
+
+                if self.cuda:
+                    fake_image = fake_image.cuda()
+
+                d_class, d_adv = self.d_model(fake_image)
+                if self.cuda:
+                    d_class = fake_class.cuda()
+                    d_adv = d_adv.cuda()
+
+                loss = self.loss_f(d_class, fake_class) + self.loss_f(d_adv, y_real_)
+                loss.backward()
+                self.g_opt.step()
+                # D
+                self.d_opt.zero_grad()
+
+                loop_loss.append(loss.data.item() / len(data_loader))
+                loss.backward()
+                self.d_opt.step()
+            else:
+                pass
+
+
+            # evaluation
+            with torch.no_grad():
+                top_1_index = output.data.max(1)[1].view(-1, 1)
+                accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
+
+                estim_class = (output.data.view(output.shape[0], -1) >= self.threshold).long()
+                data_c = data_class.data.long()
+                
+                true_positive += (data_c * estim_class).long().sum(0)
+                per_class_tag_count += data_c.sum(0)
+                estim_all += estim_class.sum(0)
+
+        mode = "train" if is_train else "test"
+        self.print_evaluation(mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive)
+
+    def train(self, data_loader):
+        self.g_model.train()
+        self.d_model.train()
+        with torch.enable_grad():
+            self._iteration(data_loader)
+
+    def test(self, data_loader):
+        self.g_model.eval()
+        self.d_model.eval()
+        with torch.no_grad():
+            self._iteration(data_loader, is_train=False)
+
+    def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
+        with self.log_path.open('a') as f:
+            f.write(str(self.args) + '\n')
+        
+        for ep in range(self.args.resume_epoch + 1, epochs + 1):
+            if scheduler is not None:
+                scheduler.step()
+            print("epochs: {}".format(ep))
+            self.epoch = ep
+
+            self.train(train_data)
+
+            if do_save:
+                self.save(ep)
+
+    def save(self, epoch, **kwargs):
+        if self.save_dir is not None:
+            model_out_path = self.save_dir
+            state = {
+                "epoch": epoch, 
+                "g_model": self.g_model.state_dict(), 
+                "d_model": self.d_model.state_dict(),
+                "g_opt": self.g_opt.state_dict(),
+                "d_opt": self.d_opt.state_dict()
+            }
+            if not model_out_path.exists():
+                model_out_path.mkdir()
+            torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
 
 def get_classid_dict(tag_dump_path):
     cv_dict = dict()

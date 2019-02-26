@@ -15,6 +15,7 @@ from model.multi_se_resnext import multi_serx50
 from torchvision.models.vgg import vgg16_bn
 from torchvision.models.resnet import resnet50
 from model.datasets import MultiImageDataset, RawSketchDataset
+from model.mask_gen_gan import get_mask_disc, MaskGenerator
 from utils import *
 from test import load_weight
 from tqdm import tqdm
@@ -125,7 +126,7 @@ def get_dataloader(args):
 
 def main(args):
     print('making dataloader...')
-    class_len, train_loader, test_loader, raw_loader, class_part_list, test_imgs = get_dataloader(args)
+    class_len, train_loader, test_loader, raw_loader, class_part_list, _ = get_dataloader(args)
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
@@ -140,6 +141,7 @@ def main(args):
         model = se_resnext50(num_classes=class_len, input_channels=in_channels)
     else:
         model = multi_serx50(class_list=class_part_list, input_channels=in_channels)
+    
 
     if args.resume_epoch != 0:
         with open(args.load_path, 'rb') as f:
@@ -162,10 +164,56 @@ def main(args):
     
     print(f'training params: {args}')
     print('setting trainer...')
-    trainer = Trainer(args, model_par, optimizer, class_part_list, save_dir=args.out_dir, test_imgs=test_imgs)
+    trainer = Trainer(args, model_par, optimizer, class_part_list, save_dir=args.out_dir)
 
     print(f'start loop')
     trainer.loop(args.epoch, train_loader, test_loader, raw_loader, scheduler, do_save=True)
+
+
+def gan_main(args):
+    print('making dataloader...')
+    class_len, train_loader, test_loader, raw_loader, class_part_list, test_imgs = get_dataloader(args)
+    gpu_count = args.gpu if args.gpu > 0 else 1
+    gpus = list(range(torch.cuda.device_count()))
+    gpus = gpus[:gpu_count]
+    opt_weight = None
+
+    in_channels = 3 if args.color else 1
+    g_model = MaskGenerator(input_dim=in_channels, output_dim=len(class_part_list), input_size=256)
+    d_model = get_mask_disc(input_channels=in_channels, num_classes=class_len)
+
+    if args.resume_epoch != 0:
+        with open(args.load_path, 'rb') as f:
+            loaded = torch.load(f)
+            g_weight = loaded['g_model']
+            d_weight = loaded['d_model']
+            g_opt_weight = loaded['g_opt']
+            d_opt_weight = loaded['d_opt']
+        load_weight(g_model, g_weight)
+        load_weight(d_model, d_weight)
+        
+        last_epoch = args.resume_epoch
+    else:
+        last_epoch = -1
+
+    g_model_par = nn.DataParallel(g_model, device_ids=gpus)
+    d_model_par = nn.DataParallel(d_model, device_ids=gpus)
+
+    #TODO: change it to SGD?
+    g_opt = optim.Adam(g_model_par.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
+    d_opt = optim.SGD(d_model_par.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
+    if g_opt_weight:
+        load_weight(g_opt, g_opt_weight, prefix_len=0)
+        load_weight(d_opt, d_opt_weight, prefix_len=0)
+
+    d_sched = optim.lr_scheduler.StepLR(d_opt, args.lr_step, gamma=args.lr_gamma, last_epoch=last_epoch)
+
+    print(f'training params: {args}')
+    print('setting trainer...')
+    trainer = GanTrainer(args, (g_model_par, d_model_par), (g_opt, d_opt), class_part_list, test_imgs, save_dir=args.out_dir, test_imgs=test_imgs)
+
+    print(f'start loop')
+    trainer.loop(args.epoch, train_loader, test_loader, raw_loader, d_sched, do_save=True)
 
 
 def calc_meanstd(args):
@@ -197,6 +245,7 @@ if __name__ == '__main__':
     p.add_argument("--resnet", action="store_true")
     p.add_argument("--gpu", default=1, type=int)
     p.add_argument("--lr", default=0.2, type=float)
+    p.add_argument("--lr_g", default=0.2, type=float)
     p.add_argument("--lr_gamma", default=0.15, type=float)
     p.add_argument("--lr_step", default=30, type=int)
     p.add_argument("--momentum", default=0.9, type=float)
@@ -210,6 +259,7 @@ if __name__ == '__main__':
     p.add_argument("--color", action="store_true")
     p.add_argument("--old", action="store_false")
     p.add_argument("--calc", action="store_true")
+    p.add_argument("--gan", action="store_true")
     p.add_argument("--eval_threshold", default=0.2, type=float)
 
     args = p.parse_args()
@@ -217,7 +267,10 @@ if __name__ == '__main__':
 
     if args.calc:
         calc_meanstd(args)
+    elif args.gan:
+        gan_main(args)
     else:
         main(args)
 
 #python train.py --data_dir=../dataset --out_dir ./result_dir2 --batch_size=48 --thread=4 --color
+#python train.py --data_dir=../dataset --out_dir ./result_gan --batch_size=64 --thread=8 --gan --lr=0.1 --lr_d=0.01 --lr_gamma=0.1
