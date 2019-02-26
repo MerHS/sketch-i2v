@@ -19,7 +19,7 @@ class Trainer(object):
         self.model = model
         self.threshold = args.eval_threshold
         self.class_part_list = class_part_list
-        self.class_len = sum(map(len, self.class_part_list))
+        self.class_len = sum(map(lambda x: len(x[1]), self.class_part_list))
         
         self.optimizer = optimizer
         self.save_dir = Path(save_dir)
@@ -47,7 +47,10 @@ class Trainer(object):
         estim_all = torch.zeros(self.class_len).long()
         per_class_tag_count = torch.zeros(self.class_len).long()
         true_positive = torch.zeros(self.class_len).long()
-        
+        if self.cuda:
+            estim_all, per_class_tag_count, true_positive = \
+                estim_all.cuda(), per_class_tag_count.cuda(), true_positive.cuda()
+
         for img_tensor, data_class in tqdm(data_loader, ncols=80):
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
@@ -70,11 +73,11 @@ class Trainer(object):
                 top_1_index = output.data.max(1)[1].view(-1, 1)
                 accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
 
-                estim_class = (output >= self.threshold).long()
-                data_c = data_class.long()
+                estim_class = (output.data.view(output.shape[0], -1) >= self.threshold).long()
+                data_c = data_class.data.long()
                 
-                true_positive += (data_class * estim_class).long().sum(0)
-                per_class_tag_count += data_class.sum(0)
+                true_positive += (data_c * estim_class).long().sum(0)
+                per_class_tag_count += data_c.sum(0)
                 estim_all += estim_class.sum(0)
 
         mode = "train" if is_train else "test"
@@ -89,7 +92,7 @@ class Trainer(object):
         precision_per_class[torch.isnan(precision_per_class)] = 0
         recall_per_class[torch.isnan(recall_per_class)] = 0
         f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class)
-        
+        f1_per_class[torch.isnan(f1_per_class)] = 0
         f1_max = f1_per_class.max()
         f1_avg = f1_per_class.mean()
         f1_10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class))
