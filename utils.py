@@ -14,9 +14,12 @@ class Trainer(object):
     cuda = torch.cuda.is_available()
     torch.backends.cudnn.benchmark = True
     
-    def __init__(self, model, optimizer, test_imgs, save_dir=None, save_freq=5):
-        self.args = None
+    def __init__(self, args, model, optimizer, class_part_list, test_imgs, save_dir=None, save_freq=5):
+        self.args = args
         self.model = model
+        self.threshold = args.eval_threshold
+        self.class_part_list = class_part_list
+        self.class_len = sum(map(len, self.class_part_list))
         
         self.optimizer = optimizer
         self.save_dir = Path(save_dir)
@@ -39,7 +42,11 @@ class Trainer(object):
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
         accuracy = []
-        
+        f1 = []
+
+        estim_all = torch.zeros(self.class_len).long()
+        per_class_tag_count = torch.zeros(self.class_len).long()
+
         for img_tensor, data_class in tqdm(data_loader, ncols=80):
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
@@ -53,36 +60,54 @@ class Trainer(object):
 
             loss = self.loss_f(output, data_class)
             loop_loss.append(loss.data.item() / len(data_loader))
-            top_1_index = output.data.max(1)[1].view(-1, 1)
-
-            accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
 
             if is_train:
                 loss.backward()
                 self.optimizer.step()
 
+            with torch.no_grad():
+                top_1_index = output.data.max(1)[1].view(-1, 1)
+                accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
+
+                estim_class = (output >= self.threshold).long()
+                data_c = data_class.long()
+                
+                true_positive += (data_class * estim_class).long().sum(0)
+                per_class_tag_count += data_class.sum(0)
+                estim_all += estim_class.sum(0)
+
         mode = "train" if is_train else "test"
+        
         loss_value = sum(loop_loss)
         accuracy_value = sum(accuracy) / len(data_loader.dataset)
         loss_txt = f">>>[{mode} {self.epoch}] loss: {loss_value:.10f} / top-1 accuracy: {accuracy_value:.2%}"
         print(loss_txt)
         
+        precision_per_class = true_positive.float() / estim_all.float()
+        recall_per_class = true_positive.float() / per_class_tag_count.float()
+        precision_per_class[torch.isnan(precision_per_class)] = 0
+        recall_per_class[torch.isnan(recall_per_class)] = 0
+        f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class)
+        
+        f1_max = f1_per_class.max()
+        f1_avg = f1_per_class.mean()
+        f1_10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class))
+        f1_txt = f"    f1 max: {f1_max}, f1 avg: {f1_avg}, percentage of f1 >= 10%: {100 * f1_10:5.3f}"
+        print(f1_txt)
+        
         with self.log_path.open('a') as f:
             f.write(loss_txt + '\n')
+            f.write(f1_txt + '\n')
         
-        return loss_value, accuracy_value
-
     def train(self, data_loader):
         self.model.train()
         with torch.enable_grad():
-            loss, correct = self._iteration(data_loader)
-
-        return loss, (correct * 100)
+            self._iteration(data_loader)
 
     def test(self, data_loader, get_mask=False):
         self.model.eval()
         with torch.no_grad():
-            loss, correct = self._iteration(data_loader, is_train=False)
+            self._iteration(data_loader, is_train=False)
             if get_mask:
                 test_tensor = self.test_imgs.clone()
                 mask = self.model.module.get_mask(test_tensor)
@@ -93,29 +118,27 @@ class Trainer(object):
             else:
                 mask_tensor = None
 
-        return loss, (correct * 100), mask_tensor
+        return mask_tensor
 
-    def loop(self, args, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
-        self.args = args
-        arg_text = str(args)
+    def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         with self.log_path.open('a') as f:
-            f.write(arg_text + '\n')
-        # self.vis.text(arg_text)
-        for ep in range(args.resume_epoch + 1, epochs + 1):
+            f.write(str(self.args) + '\n')
+        
+        for ep in range(self.args.resume_epoch + 1, epochs + 1):
             if scheduler is not None:
                 scheduler.step()
             print("epochs: {}".format(ep))
             self.epoch = ep
 
-            train_loss, train_correct = self.train(train_data)
-            test_loss, test_correct, mask_tensor = self.test(test_data, get_mask=(not args.old))
-            if not args.color:
-                raw_loss, raw_correct, _ = self.test(raw_data, get_mask=False)
+            self.train(train_data)
+            mask_tensor = self.test(test_data, get_mask=(not self.args.old))
+            if not self.args.color:
+                self.test(raw_data, get_mask=False)
 
             if do_save:
                 self.save(ep, mask_tensor)
 
-    def save(self, epoch, mask_tensor, **kwargs):
+    def save(self, epoch, mask_tensor=None, **kwargs):
         if self.save_dir is not None:
             model_out_path = self.save_dir
             state = {
