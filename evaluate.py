@@ -70,11 +70,7 @@ def get_network(args, model_path, class_len):
         gpus = list(range(torch.cuda.device_count()))
         gpus = gpus[:args.gpu]
         network = nn.DataParallel(network, device_ids=gpus)
-
-        gpus = list(range(torch.cuda.device_count()))
-        gpus = gpus[:args.gpu]
-        network = nn.DataParallel(network, device_ids=gpus)
-
+        
     network.eval()
     return network
 
