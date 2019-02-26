@@ -93,15 +93,30 @@ class Trainer(object):
         recall_per_class[torch.isnan(recall_per_class)] = 0
         f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class)
         f1_per_class[torch.isnan(f1_per_class)] = 0
-        f1_max = f1_per_class.max()
-        f1_avg = f1_per_class.mean()
-        f1_10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class))
-        f1_txt = f"    f1 max: {f1_max}, f1 avg: {f1_avg}, percentage of f1 >= 10%: {100 * f1_10:5.3f}"
+
+        mx = precision_per_class.max()
+        avg = precision_per_class.mean()
+        per10 = (precision_per_class >= 0.1).sum() / (len(precision_per_class)) 
+        ppc_txt = f"  precis per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
+        print(ppc_txt)
+
+        mx = recall_per_class.max()
+        avg = recall_per_class.mean()
+        per10 = (recall_per_class >= 0.1).sum() / (len(recall_per_class)) 
+        rpc_txt = f"  recall per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
+        print(rpc_txt)
+
+        mx = f1_per_class.max()
+        avg = f1_per_class.mean()
+        per10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class)) 
+        f1_txt =  f"  f1     per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
         print(f1_txt)
         
         with self.log_path.open('a') as f:
             f.write(loss_txt + '\n')
-            f.write(f1_txt + '\n')
+            f.write(ppc_txt + '\n')
+            f.write(rpc_txt + '\n')
+            f.write(f1_txt + '\n\n')
         
     def train(self, data_loader):
         self.model.train()
