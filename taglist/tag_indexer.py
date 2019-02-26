@@ -1,6 +1,7 @@
 import pickle
 
-color_invariant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'face.txt', 'hair.txt', 'object.txt']
+# color_invariant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'face.txt', 'hair.txt', 'object.txt']
+color_invariant_files = ['body_lower.txt', 'body_upper.txt', 'face.txt', 'hair.txt']
 color_variant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'face.txt', 'hair.txt', 'background.txt']
 tag_list_file = 'tags.txt'
 
