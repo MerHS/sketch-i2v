@@ -125,7 +125,7 @@ def get_dataloader(args):
 
 def main(args):
     print('making dataloader...')
-    class_len, train_loader, test_loader, raw_loader, iv_part_list, test_imgs = get_dataloader(args)
+    class_len, train_loader, test_loader, raw_loader, class_part_list, test_imgs = get_dataloader(args)
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
@@ -139,7 +139,7 @@ def main(args):
     elif args.old:
         model = se_resnext50(num_classes=class_len, input_channels=in_channels)
     else:
-        model = multi_serx50(class_list=iv_part_list, input_channels=in_channels)
+        model = multi_serx50(class_list=class_part_list, input_channels=in_channels)
 
     if args.resume_epoch != 0:
         with open(args.load_path, 'rb') as f:
@@ -157,9 +157,9 @@ def main(args):
     model_par = nn.DataParallel(model, device_ids=gpus)
     optimizer = optim.SGD(params=model_par.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.decay)
     if opt_weight:
-        load_weight(optimizer, opt_weight)
+        load_weight(optimizer, opt_weight, prefix_len=0)
     scheduler = optim.lr_scheduler.StepLR(optimizer, args.lr_step, gamma=args.lr_gamma, last_epoch=last_epoch)
-
+    
     print(f'training params: {args}')
     print('setting trainer...')
     trainer = Trainer(model_par, optimizer, save_dir=args.out_dir, test_imgs=test_imgs)
