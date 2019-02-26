@@ -46,7 +46,8 @@ class Trainer(object):
 
         estim_all = torch.zeros(self.class_len).long()
         per_class_tag_count = torch.zeros(self.class_len).long()
-
+        true_positive = torch.zeros(self.class_len).long()
+        
         for img_tensor, data_class in tqdm(data_loader, ncols=80):
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
