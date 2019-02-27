@@ -257,7 +257,8 @@ class GanTrainer(Trainer):
                 d_real_c, d_real_adv = self.d_model(img_tensor)
                 adv_loss = self.loss_f(d_real_adv, y_real_)
                 class_loss = self.loss_f(d_real_c, data_class)
-                loop_loss.append((adv_loss, class_loss))
+                data_len = len(data_loader)
+                loop_loss.append((adv_loss.data.item() / data_len, class_loss.data.item() / data_len))
 
             # evaluation
             with torch.no_grad():
@@ -310,16 +311,18 @@ class GanTrainer(Trainer):
         return g_mask, g_masked_img
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
-        test_img, _ = test_data.__iter__().__next__()
+        test_img, test_class = test_data.__iter__().__next__()
         self.save_img("keras_sketch.png", test_img)
         if self.cuda:
             test_img = test_img.cuda()
+            test_class = test_class.cuda()
 
         if not self.args.color:
-            raw_img, _ = raw_data.__iter__().__next__()
+            raw_img, raw_class = raw_data.__iter__().__next__()
             self.save_img("raw_sketch.png", raw_img)
             if self.cuda:
                 raw_img = raw_img.cuda()
+                raw_class = raw_class.cuda()
 
 
         with self.log_path.open('a') as f:
@@ -340,11 +343,11 @@ class GanTrainer(Trainer):
                 self.save(ep)
                 
                 for part_i in range(self.part_len):
-                    mask, mx_img = self.get_mask_img_set(test_img)
+                    mask, mx_img = self.get_mask_img_set(test_img, test_class, part_i)
                     self.save_img(f'keras_mask_pt{part_i}_{ep}.png', mask)
                     self.save_img(f'keras_del_pt{part_i}_{ep}.png', mx_img)
                     if not self.args.color:
-                        mask, mx_img = self.get_mask_img_set(raw_img)
+                        mask, mx_img = self.get_mask_img_set(raw_img, raw_class, part_i)
                         self.save_img(f'raw_mask_pt{part_i}_{ep}.png', mask)
                         self.save_img(f'raw_del_pt{part_i}_{ep}.png', mx_img)
 

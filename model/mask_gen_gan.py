@@ -128,5 +128,5 @@ class MaskDiscriminator(SEResNeXt):
 
 
 def get_mask_disc(**kwargs):
-    model = MaskDiscriminator(BottleneckX, [3, 4, 6, 3], **kwargs)
+    model = MaskDiscriminator(BottleneckX, [3, 3, 3, 3], **kwargs)
     return model
