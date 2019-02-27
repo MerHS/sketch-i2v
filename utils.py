@@ -281,7 +281,7 @@ class GanTrainer(Trainer):
         if mode == "train":
             d_loss_txt = f">>>d_loss: {d_loss_value:.10f}"
         else:
-            d_loss_txt = f">>>d_loss: {d_loss_value + sum(g_loss):.10f} / adv_loss: {d_loss_value:.10f} "
+            d_loss_txt = f">>>d_loss: {d_loss_value + sum(g_loss):.10f} / adv_loss: {d_loss_value:.10f} / below: class_loss"
         print(d_loss_txt)
 
         with self.log_path.open('a') as f:
@@ -310,13 +310,13 @@ class GanTrainer(Trainer):
         return g_mask, g_masked_img
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
-        test_img, _ = next(test_data)
+        test_img, _ = test_data.__iter__().__next__()
         self.save_img("keras_sketch.png", test_img)
         if self.cuda:
             test_img = test_img.cuda()
 
         if not self.args.color:
-            raw_img, _ = next(raw_data)
+            raw_img, _ = raw_data.__iter__().__next__()
             self.save_img("raw_sketch.png", raw_img)
             if self.cuda:
                 raw_img = raw_img.cuda()
