@@ -1,5 +1,5 @@
 from pathlib import Path
-import shutil
+import shutil, math
 import pickle
 
 import torch, torchvision
@@ -308,7 +308,7 @@ class GanTrainer(Trainer):
             g_mask = self.g_model(img_tensor)
             g_masked_img, _ = self._masking(g_mask, img_tensor, data_class, mask_idx)
         
-        return g_mask, g_masked_img
+        return g_mask[:, mask_idx, :, :], g_masked_img
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         test_img, test_class = test_data.__iter__().__next__()
@@ -368,7 +368,8 @@ class GanTrainer(Trainer):
     def save_img(self, file_name, save_img):
         if self.save_dir is not None:
             model_out_path = self.save_dir
-            torchvision.utils.save_image(save_img, model_out_path / file_name, nrow=7, padding=0)       
+            nrow = int(math.ceil(math.sqrt(len(save_img)))) 
+            torchvision.utils.save_image(save_img, model_out_path / file_name, nrow=nrow, padding=0)       
 
 
 def get_classid_dict(tag_dump_path):
