@@ -166,6 +166,7 @@ class GanTrainer(Trainer):
         self.g_model, self.d_model = models
         self.g_opt, self.d_opt = opts
         self.test_imgs = test_imgs
+        self.part_len = len(class_part_list)
         self.clen_list = list(map(lambda x: len(x[1]), class_part_list))
         self.clen_list.insert(0, 0)
         self.clen_list = np.array(list(accumulate(self.clen_list)))
@@ -175,12 +176,15 @@ class GanTrainer(Trainer):
             self.d_model = self.d_model.cuda()
             self.test_imgs = test_imgs
 
-    def _masking(self, mask, img_tensor, data_class):
+    def _masking(self, mask, img_tensor, data_class, rand_idx=-1):
         img_len = img_tensor.shape[0]
 
         b, c, h, w = mask.shape
         b_ind = np.arange(img_len)
-        mask_ind = np.random.randint(4, size=img_len)
+        if rand_idx == -1:
+            mask_ind = np.random.randint(self.part_len, size=img_len)
+        else:
+            mask_ind = np.repeat(rand_idx, img_len)
             
         mask = mask[b_ind, mask_ind, :, :].unsqueeze(1)
         masked_img = 1 - (1 - img_tensor) * (1 - mask)
@@ -215,42 +219,45 @@ class GanTrainer(Trainer):
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
                 y_real_, y_fake_ = y_real_.cuda(), y_fake_.cuda()
 
-            if not is_train: # make loop mask
-                break
+            if is_train:
+                # D
+                self.d_opt.zero_grad()
 
-            # D
-            self.d_opt.zero_grad()
+                d_real_c, d_real_adv = self.d_model(img_tensor)
+                d_real_loss = self.loss_f(d_real_c, data_class) + self.loss_f(d_real_adv, y_real_)
 
-            d_real_c, d_real_adv = self.d_model(img_tensor)
-            d_real_loss = self.loss_f(d_real_c, data_class) + self.loss_f(d_real_adv, y_real_)
+                d_mask = self.g_model(img_tensor)
+                d_masked_img, d_masked_class = self._masking(d_mask, img_tensor, data_class)
 
-            d_mask = self.g_model(img_tensor)
-            d_masked_img, d_masked_class = self._masking(d_mask, img_tensor, data_class)
+                d_fake_c, d_fake_adv = self.d_model(d_masked_img)
+                d_fake_loss = self.loss_f(d_fake_c, d_masked_class) + self.loss_f(d_fake_adv, y_fake_)
 
-            d_fake_c, d_fake_adv = self.d_model(d_masked_img)
-            d_fake_loss = self.loss_f(d_fake_c, d_masked_class) + self.loss_f(d_fake_adv, y_fake_)
+                d_loss = d_real_loss + d_fake_loss
 
-            d_loss = d_real_loss + d_fake_loss
+                d_loss.backward()
+                self.d_opt.step()
+                d_loss_n = d_loss.data.item() / len(data_loader)
 
-            d_loss.backward()
-            self.d_opt.step()
-            d_loss_n = d_loss.data.item() / len(data_loader)
+                # G
+                self.g_opt.zero_grad()
 
-            # G
-            self.g_opt.zero_grad()
+                g_mask = self.g_model(img_tensor)
 
-            g_mask = self.g_model(img_tensor)
+                g_masked_img, g_masked_class = self._masking(g_mask, img_tensor, data_class)
+                g_class, g_adv = self.d_model(g_masked_img)
 
-            g_masked_img, g_masked_class = self._masking(g_mask, img_tensor, data_class)
-            g_class, g_adv = self.d_model(g_masked_img)
+                g_loss = self.loss_f(g_class, g_masked_class) + self.loss_f(g_adv, y_real_)
 
-            g_loss = self.loss_f(g_class, g_masked_class) + self.loss_f(g_adv, y_real_)
+                g_loss.backward()
+                self.g_opt.step()
+                g_loss_n = g_loss.data.item() / len(data_loader)
 
-            g_loss.backward()
-            self.g_opt.step()
-            g_loss_n = g_loss.data.item() / len(data_loader)
-
-            loop_loss.append((d_loss_n, g_loss_n))
+                loop_loss.append((d_loss_n, g_loss_n))
+            else:
+                d_real_c, d_real_adv = self.d_model(img_tensor)
+                adv_loss = self.loss_f(d_real_adv, y_real_)
+                class_loss = self.loss_f(d_real_c, data_class)
+                loop_loss.append((adv_loss, class_loss))
 
             # evaluation
             with torch.no_grad():
@@ -271,27 +278,50 @@ class GanTrainer(Trainer):
         d_loss, g_loss = [list(t) for t in zip(*loop_loss)]
 
         d_loss_value = sum(d_loss)
-        d_loss_txt = f">>>d_loss: {d_loss_value:.10f}"
+        if mode == "train":
+            d_loss_txt = f">>>d_loss: {d_loss_value:.10f}"
+        else:
+            d_loss_txt = f">>>d_loss: {d_loss_value + sum(g_loss):.10f} / adv_loss: {d_loss_value:.10f} "
         print(d_loss_txt)
 
         with self.log_path.open('a') as f:
             f.write(d_loss_txt + '\n')
 
-        super(GanTrainer, self).print_evaluation(mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive)
-
-    def train(self, data_loader):
-        self.g_model.train()
-        self.d_model.train()
-        with torch.enable_grad():
-            self._iteration(data_loader)
+        super(GanTrainer, self).print_evaluation(mode, data_len, g_loss, accuracy, estim_all, per_class_tag_count, true_positive)
 
     def test(self, data_loader):
         self.g_model.eval()
         self.d_model.eval()
         with torch.no_grad():
             self._iteration(data_loader, is_train=False)
+            
+    def train(self, data_loader):
+        self.g_model.train()
+        self.d_model.train()
+        with torch.enable_grad():
+            self._iteration(data_loader)
+
+    def get_mask_img_set(self, img_tensor, data_class, mask_idx):
+        self.g_model.eval()
+        with torch.no_grad():
+            g_mask = self.g_model(img_tensor)
+            g_masked_img, _ = self._masking(g_mask, img_tensor, data_class, mask_idx)
+        
+        return g_mask, g_masked_img
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
+        test_img, _ = next(test_data)
+        self.save_img("keras_sketch.png", test_img)
+        if self.cuda:
+            test_img = test_img.cuda()
+
+        if not self.args.color:
+            raw_img, _ = next(raw_data)
+            self.save_img("raw_sketch.png", raw_img)
+            if self.cuda:
+                raw_img = raw_img.cuda()
+
+
         with self.log_path.open('a') as f:
             f.write(str(self.args) + '\n')
         
@@ -302,9 +332,21 @@ class GanTrainer(Trainer):
             self.epoch = ep
 
             self.train(train_data)
+            self.test(test_data)
+            if not self.args.color:
+                self.test(raw_data)
 
             if do_save:
                 self.save(ep)
+                
+                for part_i in range(self.part_len):
+                    mask, mx_img = self.get_mask_img_set(test_img)
+                    self.save_img(f'keras_mask_pt{part_i}_{ep}.png', mask)
+                    self.save_img(f'keras_del_pt{part_i}_{ep}.png', mx_img)
+                    if not self.args.color:
+                        mask, mx_img = self.get_mask_img_set(raw_img)
+                        self.save_img(f'raw_mask_pt{part_i}_{ep}.png', mask)
+                        self.save_img(f'raw_del_pt{part_i}_{ep}.png', mx_img)
 
     def save(self, epoch, **kwargs):
         if self.save_dir is not None:
@@ -319,6 +361,12 @@ class GanTrainer(Trainer):
             if not model_out_path.exists():
                 model_out_path.mkdir()
             torch.save(state, model_out_path / f"model_epoch_{epoch}.pth")
+
+    def save_img(self, file_name, save_img):
+        if self.save_dir is not None:
+            model_out_path = self.save_dir
+            torchvision.utils.save_image(save_img, model_out_path / file_name, nrow=7, padding=0)       
+
 
 def get_classid_dict(tag_dump_path):
     cv_dict = dict()
