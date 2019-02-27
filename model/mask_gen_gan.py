@@ -58,7 +58,7 @@ class MaskGenerator(nn.Module):
 
     def _make_block(self, inplanes, planes, block_num):
         return nn.Sequential(
-            make_resnext_layer(BottleneckX, inplanes, planes*4, block_num, stride=2),
+            make_resnext_layer(BottleneckX, inplanes, planes*4, block_num),
             nn.PixelShuffle(2),
         )
     
@@ -78,7 +78,7 @@ class MaskGenerator(nn.Module):
             nn.LeakyReLU(0.2),
         )
         
-    def forward(self, input, feature_tensor, c_tag_class):
+    def forward(self, input):
         out1 = self.conv1(input)
         out2 = self.conv2(out1)
         out3 = self.conv3(out2)

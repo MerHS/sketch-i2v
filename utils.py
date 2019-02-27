@@ -98,19 +98,19 @@ class Trainer(object):
         mx = precision_per_class.max()
         avg = precision_per_class.mean()
         per10 = (precision_per_class >= 0.1).sum() / (len(precision_per_class)) 
-        ppc_txt = f"  precis per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
+        ppc_txt = f"  precis per class / avg: {avg*100:5.3f}%, >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
         print(ppc_txt)
 
         mx = recall_per_class.max()
         avg = recall_per_class.mean()
         per10 = (recall_per_class >= 0.1).sum() / (len(recall_per_class)) 
-        rpc_txt = f"  recall per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
+        rpc_txt = f"  recall per class / avg: {avg*100:5.3f}%, >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
         print(rpc_txt)
 
         mx = f1_per_class.max()
         avg = f1_per_class.mean()
         per10 = (f1_per_class >= 0.1).sum() / (len(f1_per_class)) 
-        f1_txt =  f"  f1     per class / avg: {avg*100:5.3f}%, f1 >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
+        f1_txt =  f"  f1     per class / avg: {avg*100:5.3f}%, >= 10%: {per10*100:5.3f}, max: {mx*100:5.3f}%"
         print(f1_txt + '\n')
         
         with self.log_path.open('a') as f:
@@ -168,12 +168,32 @@ class GanTrainer(Trainer):
         self.test_imgs = test_imgs
         self.clen_list = list(map(lambda x: len(x[1]), class_part_list))
         self.clen_list.insert(0, 0)
-        self.clen_list = np.array(accumulate(self.clen_list))
+        self.clen_list = np.array(list(accumulate(self.clen_list)))
 
         if self.cuda:
             self.g_model = self.g_model.cuda()
             self.d_model = self.d_model.cuda()
             self.test_imgs = test_imgs
+
+    def _masking(self, mask, img_tensor, data_class):
+        img_len = img_tensor.shape[0]
+
+        b, c, h, w = mask.shape
+        b_ind = np.arange(img_len)
+        mask_ind = np.random.randint(4, size=img_len)
+            
+        mask = mask[b_ind, mask_ind, :, :].unsqueeze(1)
+        masked_img = 1 - (1 - img_tensor) * (1 - mask)
+
+        clone_class = data_class.clone()
+        if self.cuda:
+            clone_class = clone_class.cuda()
+
+        cmask_from, cmask_to = self.clen_list[mask_ind], self.clen_list[mask_ind+1]
+        for i in range(data_class.shape[0]):
+            clone_class[i, cmask_from[i]:cmask_to[i]] = 0
+
+        return masked_img, clone_class
 
     def _iteration(self, data_loader, is_train=True):
         loop_loss = []
@@ -190,58 +210,54 @@ class GanTrainer(Trainer):
         # train
         for img_tensor, data_class in tqdm(data_loader, ncols=80):
             img_len = img_tensor.shape[0]
-            b_ind = np.array(range(img_len))
             y_real_, y_fake_ = torch.ones(img_len, 1), torch.zeros(img_len, 1)
             if self.cuda:
                 img_tensor, data_class = img_tensor.cuda(), data_class.cuda()
                 y_real_, y_fake_ = y_real_.cuda(), y_fake_.cuda()
 
-            if is_train:
-                # G
-                mask_ind = list(map(lambda x: randint(0, 3), range(img_len)))
-                mask_ind = np.array(mask_ind)
+            if not is_train: # make loop mask
+                break
 
-                print(img_tensor.max())
-                
-                self.g_opt.zero_grad()
-                mask = self.g_model(img_tensor)[b_ind, mask_ind, :, :]
-                fake_image = 1 - (1 - img_tensor) * (1 - mask)
+            # D
+            self.d_opt.zero_grad()
 
-                # TODO: for loop mask 0
-                cmask_from, cmask_to = self.clen_list[mask_ind], self.clen_list[mask_ind+1]
-                fake_class = data_class.clone()
-                if self.cuda:
-                    mask = mask.cuda()
-                    fake_class = fake_class.cuda()
-                fake_class[:, cmask_from:cmask_to] = 0
+            d_real_c, d_real_adv = self.d_model(img_tensor)
+            d_real_loss = self.loss_f(d_real_c, data_class) + self.loss_f(d_real_adv, y_real_)
 
-                if self.cuda:
-                    fake_image = fake_image.cuda()
+            d_mask = self.g_model(img_tensor)
+            d_masked_img, d_masked_class = self._masking(d_mask, img_tensor, data_class)
 
-                d_class, d_adv = self.d_model(fake_image)
-                if self.cuda:
-                    d_class = fake_class.cuda()
-                    d_adv = d_adv.cuda()
+            d_fake_c, d_fake_adv = self.d_model(d_masked_img)
+            d_fake_loss = self.loss_f(d_fake_c, d_masked_class) + self.loss_f(d_fake_adv, y_fake_)
 
-                loss = self.loss_f(d_class, fake_class) + self.loss_f(d_adv, y_real_)
-                loss.backward()
-                self.g_opt.step()
-                # D
-                self.d_opt.zero_grad()
+            d_loss = d_real_loss + d_fake_loss
 
-                loop_loss.append(loss.data.item() / len(data_loader))
-                loss.backward()
-                self.d_opt.step()
-            else:
-                pass
+            d_loss.backward()
+            self.d_opt.step()
+            d_loss_n = d_loss.data.item() / len(data_loader)
 
+            # G
+            self.g_opt.zero_grad()
+
+            g_mask = self.g_model(img_tensor)
+
+            g_masked_img, g_masked_class = self._masking(g_mask, img_tensor, data_class)
+            g_class, g_adv = self.d_model(g_masked_img)
+
+            g_loss = self.loss_f(g_class, g_masked_class) + self.loss_f(g_adv, y_real_)
+
+            g_loss.backward()
+            self.g_opt.step()
+            g_loss_n = g_loss.data.item() / len(data_loader)
+
+            loop_loss.append((d_loss_n, g_loss_n))
 
             # evaluation
             with torch.no_grad():
-                top_1_index = output.data.max(1)[1].view(-1, 1)
+                top_1_index = d_real_c.data.max(1)[1].view(-1, 1)
                 accuracy.append((data_class.data.gather(1, top_1_index)).sum().item())
 
-                estim_class = (output.data.view(output.shape[0], -1) >= self.threshold).long()
+                estim_class = (d_real_c.data.view(d_real_c.shape[0], -1) >= self.threshold).long()
                 data_c = data_class.data.long()
                 
                 true_positive += (data_c * estim_class).long().sum(0)
@@ -250,6 +266,18 @@ class GanTrainer(Trainer):
 
         mode = "train" if is_train else "test"
         self.print_evaluation(mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive)
+
+    def print_evaluation(self, mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive):
+        d_loss, g_loss = [list(t) for t in zip(*loop_loss)]
+
+        d_loss_value = sum(d_loss)
+        d_loss_txt = f">>>d_loss: {d_loss_value:.10f}"
+        print(d_loss_txt)
+
+        with self.log_path.open('a') as f:
+            f.write(d_loss_txt + '\n')
+
+        super(GanTrainer, self).print_evaluation(mode, data_len, loop_loss, accuracy, estim_all, per_class_tag_count, true_positive)
 
     def train(self, data_loader):
         self.g_model.train()

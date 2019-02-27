@@ -176,7 +176,7 @@ def gan_main(args):
     gpu_count = args.gpu if args.gpu > 0 else 1
     gpus = list(range(torch.cuda.device_count()))
     gpus = gpus[:gpu_count]
-    opt_weight = None
+    g_opt_weight = None
 
     in_channels = 3 if args.color else 1
     g_model = MaskGenerator(input_dim=in_channels, output_dim=len(class_part_list), input_size=256)
@@ -210,7 +210,7 @@ def gan_main(args):
 
     print(f'training params: {args}')
     print('setting trainer...')
-    trainer = GanTrainer(args, (g_model_par, d_model_par), (g_opt, d_opt), class_part_list, test_imgs, save_dir=args.out_dir, test_imgs=test_imgs)
+    trainer = GanTrainer(args, (g_model_par, d_model_par), (g_opt, d_opt), class_part_list, save_dir=args.out_dir, test_imgs=test_imgs)
 
     print(f'start loop')
     trainer.loop(args.epoch, train_loader, test_loader, raw_loader, d_sched, do_save=True)
