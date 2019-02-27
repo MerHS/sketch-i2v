@@ -257,8 +257,8 @@ class GanTrainer(Trainer):
                 d_real_c, d_real_adv = self.d_model(img_tensor)
                 adv_loss = self.loss_f(d_real_adv, y_real_)
                 class_loss = self.loss_f(d_real_c, data_class)
-                data_len = len(data_loader)
-                loop_loss.append((adv_loss.data.item() / data_len, class_loss.data.item() / data_len))
+                dataset_lx = len(data_loader)
+                loop_loss.append((adv_loss.data.item() / dataset_lx, class_loss.data.item() / dataset_lx))
 
             # evaluation
             with torch.no_grad():
@@ -308,7 +308,7 @@ class GanTrainer(Trainer):
             g_mask = self.g_model(img_tensor)
             g_masked_img, _ = self._masking(g_mask, img_tensor, data_class, mask_idx)
         
-        return g_mask[:, mask_idx, :, :], g_masked_img
+        return g_mask[:, mask_idx, :, :].unsqueeze(1), g_masked_img
 
     def loop(self, epochs, train_data, test_data, raw_data, scheduler=None, do_save=True):
         test_img, test_class = test_data.__iter__().__next__()
