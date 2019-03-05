@@ -70,16 +70,21 @@ def generate_NL_sentence(this_image_tags, sections):
 def load_vectors(fname, total_name_list):
     fin = io.open(fname, 'r', encoding='utf-8', newline='\n', errors='ignore')
     n, d = map(int, fin.readline().split())
-    data = {}
+    tag_dict = {}
+    word_embeddings = []
+    i = 1
+
     for line in fin:
         tokens = line.rstrip().split(' ')
 
         tag_name = tokens[0]
         if tag_name in total_name_list:
-            data[tag_name] = map(float, tokens[1:])
+            tag_dict[tag_name] = i
+            word_embeddings.append(list(map(float, tokens[1:])))
+            i += 1
             # print(tokens[0].encode('utf-8'))
             # print(len(tokens[1:]))
-    return data
+    return tag_dict, word_embeddings
 
 def get_tag_id(tag_dump_path):
     cv_dict = dict()
@@ -295,21 +300,15 @@ if __name__ == '__main__':
 
     # print(len(total_name_list))
 
-    data = load_vectors(file_name, total_name_list)
+    tag_dict, word_embeddings = load_vectors(file_name, total_name_list)
 
+    print(tag_dict, word_embeddings)
     # print(len(data))
-
-    data_keys = list(data.keys())
-
-    not_included_words = set(total_name_list) - set(data_keys)
-
-    # print(not_included_words)
-
 
 
     result = {
-        'word_names' : data_keys,
-        'word_vectors' : data
+        'tag_dict' : tag_dict,
+        'word_embeddings' : word_embeddings
     }
 
     with open('w2v.pkl', 'wb') as fw:
@@ -320,9 +319,10 @@ if __name__ == '__main__':
 
     result = {
         'train' : train_file_id_to_sentence,
-        'test' : test_file_id_to_sentence
+        'val' : test_file_id_to_sentence
         }
 
     with open('tag2sentence.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+
 
