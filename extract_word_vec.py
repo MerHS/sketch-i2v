@@ -124,7 +124,7 @@ def make_dataset(data_dir_path, cvt_name_list, data_size=0):
 
     print('reading tagline')
     rgb_train_path = data_dir_path / "rgb_train"
-    rgb_test_path = data_dir_path / "benchmark"
+    rgb_test_path = data_dir_path / "rgb_test"
     sketch_dir_path_list = ["keras_train", "simpl_train", "xdog_train"]
     sketch_dir_path_list = list(map(lambda x : data_dir_path / x, sketch_dir_path_list))
     sketch_train_path = data_dir_path / "keras_test"
@@ -135,7 +135,7 @@ def make_dataset(data_dir_path, cvt_name_list, data_size=0):
         tag_path, rgb_train_path, cv_dict_name_to_id, data_size=data_size)
 
     test_file_id_to_sentence = read_tagline_txt(
-        tag_path, rgb_test_path, cv_dict_name_to_id, data_size=100)
+        tag_path, rgb_test_path, cv_dict_name_to_id, data_size=data_size)
 
     print(train_file_id_to_sentence, test_file_id_to_sentence)
     return train_file_id_to_sentence, test_file_id_to_sentence
