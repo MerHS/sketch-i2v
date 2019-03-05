@@ -307,16 +307,22 @@ if __name__ == '__main__':
 
 
 
-    torch.save({
+    result = {
         'word_names' : data_keys,
         'word_vectors' : data
-        }, os.path.join('./', 'w2v.pkl'))
+    }
 
+    with open('w2v.pkl', 'wb') as fw:
+        pickle.dump(result, fw)
 
     data_dir_path = Path('../dataset/')
     train_file_id_to_sentence, test_file_id_to_sentence = make_dataset(data_dir_path, word_list)
 
-    torch.save({
+    result = {
         'train' : train_file_id_to_sentence,
         'test' : test_file_id_to_sentence
-        }, os.path.join('./', 'tag2sentence.pkl'))
+        }
+
+    with open('tag2sentence.pkl', 'wb') as fw:
+        pickle.dump(result, fw)
+
