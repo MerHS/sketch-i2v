@@ -16,15 +16,18 @@ color_variant_files = ['body_lower.txt', 'body_upper.txt', 'body_whole.txt', 'fa
 TAG_FILE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'taglist', 'tag_dump.pkl')
 
 def split_cvt_to_words(tag_name):
-    
+
+
     temp1 = tag_name.split('_')
 
     temp2 = []
 
     if '-' in temp1[0]:
         temp2 = temp1[0].split('-')
+        return temp2 + [temp1[1]]
+    else:
+        return temp1
 
-    return temp2 + temp1
 
 def generate_NL_sentence(this_image_tags, sections):
 
@@ -58,7 +61,7 @@ def generate_NL_sentence(this_image_tags, sections):
 
     if len(section_3) > 0:
         result.append('in')
-        for t in section_2:
+        for t in section_3:
             result += split_cvt_to_words(t)
             result.append('and')
         result = result[:-1]
@@ -324,5 +327,6 @@ if __name__ == '__main__':
 
     with open('tag2sentence.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+
 
 
