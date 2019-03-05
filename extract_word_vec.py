@@ -75,6 +75,7 @@ def load_vectors(fname, total_name_list):
     n, d = map(int, fin.readline().split())
     tag_dict = {}
     word_embeddings = []
+
     i = 1
 
     for line in fin:
@@ -87,6 +88,10 @@ def load_vectors(fname, total_name_list):
             i += 1
             # print(tokens[0].encode('utf-8'))
             # print(len(tokens[1:]))
+
+    tag_dict['Nothing'] = 0
+    word_embeddings.insert(0, [0.0] * len(word_embeddings[0]))
+    
     return tag_dict, word_embeddings
 
 def get_tag_id(tag_dump_path):
@@ -327,6 +332,7 @@ if __name__ == '__main__':
 
     with open('tag2sentence.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+
 
 
 
