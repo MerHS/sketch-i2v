@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
     word_list = []
 
-    extra_words = ['a', 'girl', 'boy', 'with', 'and', 'wearing']
+    extra_words = ['a', 'girl', 'boy', 'with', 'and', 'wearing', 'in']
 
     
 
