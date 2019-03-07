@@ -183,8 +183,8 @@ def read_tagline_txt(tag_txt_path, img_dir_path, cv_dict_name_to_id, data_size=0
             tag_list = set(tag_list[1:])
 
 
-            # if not (img_dir_path / f'{file_id}.png').exists():
-            #     continue
+            if not (img_dir_path / f'{file_id}.png').exists():
+                continue
 
             # print(file_id, tag_list)
             
@@ -332,6 +332,7 @@ if __name__ == '__main__':
 
     with open('tag2sentence.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+
 
 
 
