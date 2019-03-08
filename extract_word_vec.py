@@ -6,7 +6,7 @@
 #   year={2018}
 # }
 
-import io
+import io, random
 import torch
 import os, pickle
 from pathlib import Path
@@ -334,6 +334,60 @@ if __name__ == '__main__':
         pickle.dump(result, fw)
 
 
+    SISGAN_test_file_id_to_sentence = dict()
+
+    hair_tags_names = ['blonde hair', 'brown hair', 'black hair', 'blue hair', 'purple hair', 'pink hair', 'silver hair', 'green hair', 'red hair', 'white hair', 'orange hair', 'grey hair', 'aqua hair', 'lavender hair', 'light brown hair']
+    eye_tags_names = ['blue eyes', 'red eyes', 'brown eyes', 'green eyes', 'purple eyes', 'yellow eyes', 'pink eyes', 'black eyes', 'aqua eyes', 'orange eyes', 'grey eyes', 'silver eyes', 'red framed eyewear', 'black framed eyewear']
+
+    for file_id in test_file_id_to_sentence:
 
 
 
+        tags = test_file_id_to_sentence[file_id]
+
+        SISGAN_test_file_id_to_sentence[file_id] = []
+
+        sentence = ' '.join(tags)
+
+        for hair_tags_name in hair_tags_names:
+            if hair_tags_name in sentence:
+
+                index = hair_tags_names.index(hair_tags_name)
+
+                temp = None
+
+                if index == (len(hair_tags_names) - 1):
+                    temp = hair_tags_names[:index]
+                else:
+                    temp = hair_tags_names[:index] + hair_tags_names[index+1:]
+
+                sentence = sentence.replace(hair_tags_name, random.choice(temp))
+
+                break
+
+        for eye_tags_name in eye_tags_names:
+            if eye_tags_name in sentence:
+                
+                index = eye_tags_names.index(eye_tags_name)
+
+                temp = None
+                
+                if index == (len(eye_tags_names) - 1):
+                    temp = eye_tags_names[:index]
+                else:
+                    temp = eye_tags_names[:index] + eye_tags_names[index+1:]
+
+                sentence = sentence.replace(eye_tags_name, random.choice(temp))
+
+                break
+
+
+
+        SISGAN_test_file_id_to_sentence[file_id].append(sentence.split(' '))
+
+
+    result = {
+        'data' : SISGAN_test_file_id_to_sentence,
+        }
+    with open('test_change_color_sentence.pkl', 'wb') as fw:
+        pickle.dump(result, fw)
