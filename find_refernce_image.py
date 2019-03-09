@@ -20,7 +20,7 @@ if __name__ == '__main__':
     include_tags = [470575]
     hair_tags = [87788, 16867, 13200, 10953, 16442, 11429, 15425, 8388, 5403, 16581, 87676, 16580, 94007, 403081, 468534]
     eye_tags = [10959, 8526, 16578, 10960, 15654, 89189, 16750, 13199, 89368, 95405, 89228, 390186]
-
+    random.seed(1000)
 
     if not reference_images_path.exists():
         os.makedirs(reference_images_path) 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
                 else:
                     result[file_id] = [rgb_file_id]
         try:
-            result_path.write(f"{file_id} {' '.join(str(x) for x in result[file_id])}")
+            result_path.write(f"{file_id} {' '.join(str(x) for x in result[file_id])}\n")
             random.shuffle(result[file_id])
             for f_id in result[file_id]:
                 file_path = f"../dataset/rgb_train/{f_id}.png"
