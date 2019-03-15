@@ -1,4 +1,5 @@
 import cv2
+import random, time
 from random import uniform, randint, choice
 from PIL import Image
 from torchvision import transforms
@@ -21,7 +22,14 @@ class MultiImageDataset(Dataset):
         self.override_len = override_len
         self.conv_arg = 'RGB' if is_color else 'L'
 
-    def __getitem__(self, index):
+        self.indexes = [i for i in range(self.data_len)]
+        random.seed(10)
+        random.shuffle(self.indexes)
+        random.seed(time.time())
+
+    def __getitem__(self, idx):
+        index = self.indexes[idx]
+
         file_id = self.file_id_list[index]
         tag_class = self.tag_list[index]
         img_dir_path = choice(self.image_dir_path_list)

@@ -64,7 +64,7 @@ def get_dataloader(args):
         class_dict = cv_dict
         class_part_list = cv_part_list
     else:
-        train_dir_list = [data_dir / 'keras_train', data_dir / 'simpl_train', data_dir / 'xdog_train']
+        train_dir_list = [data_dir / 'rgb_train']
         test_dir = data_dir / "keras_test"
         class_dict = iv_dict
         class_part_list = iv_part_list

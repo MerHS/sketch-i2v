@@ -7,21 +7,19 @@ class Selayer(nn.Module):
     def __init__(self, inplanes):
         super(Selayer, self).__init__()
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
-        # self.conv1 = nn.Conv2d(inplanes, inplanes // 16, kernel_size=1, stride=1)
-        # self.conv2 = nn.Conv2d(inplanes // 16, inplanes, kernel_size=1, stride=1)
-        self.fc = nn.Sequential(
-            nn.Linear(inplanes, inplanes // 16, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(inplanes // 16, inplanes, bias=False),
-            nn.Sigmoid()
-        )
+        self.conv1 = nn.Conv2d(inplanes, inplanes // 16, kernel_size=1, stride=1)
+        self.conv2 = nn.Conv2d(inplanes // 16, inplanes, kernel_size=1, stride=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        b, c, _, _ = x.size()
-        out = self.global_avgpool(x).view(b, c)
-        out = self.fc(out).view(b, c, 1, 1)
+        out = self.global_avgpool(x)
+        out = self.conv1(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+        out = self.sigmoid(out)
 
-        return x * out.expand_as(x)
+        return x * out
 
 class BottleneckX(nn.Module):
     expansion = 4
